@@ -129,38 +129,6 @@
 
 <section class="grid two">
   <article class="panel">
-    <h2>Комментарии и переписка</h2>
-    <div class="timeline">
-      {% for row in comments %}
-      <div class="event">
-        <div class="meta">{{ row.created_at }} · {{ 'internal' if row.is_internal else 'client' }}</div>
-        <div>{{ row.text or '—' }}</div>
-      </div>
-      {% else %}
-      <div class="empty">Комментариев пока нет.</div>
-      {% endfor %}
-    </div>
-  </article>
-
-  <article class="panel">
-    <h2>Файлы</h2>
-    <div class="timeline">
-      {% for row in attachments %}
-      <div class="event">
-        <div class="meta">{{ row.created_at }} · {{ row.category or 'file' }}</div>
-        <div><strong>{{ row.filename or row.source_file_id }}</strong></div>
-        <div class="muted">{{ row.mime_type or '—' }}</div>
-        {% if row.storage_url %}<div class="muted">{{ row.storage_url }}</div>{% endif %}
-      </div>
-      {% else %}
-      <div class="empty">Файлов пока нет.</div>
-      {% endfor %}
-    </div>
-  </article>
-</section>
-
-<section class="grid two">
-  <article class="panel">
     <h2>Заказы</h2>
     <div class="timeline">
       {% for row in orders %}
@@ -190,6 +158,48 @@
       <div class="empty">Платежей пока нет.</div>
       {% endfor %}
     </div>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="panel">
+    <h2>Тексты заявки</h2>
+    <div class="muted">Заявка #{{ app_row.external_lead_id }} · {{ app_row.status }}</div>
+    <div class="timeline" style="margin-top: 10px;">
+      {% for row in comments %}
+      <div class="event">
+        <div class="meta">{{ row.created_at }} · {{ 'internal' if row.is_internal else 'client' }}</div>
+        <div>{{ row.text or '—' }}</div>
+      </div>
+      {% else %}
+      <div class="empty">Текстов и комментариев пока нет.</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <h2>Файлы заявки</h2>
+    {% for group in attachments|groupby('category') %}
+    <div class="file-group">
+      <div class="file-group-title">{{ group.grouper or 'Файлы' }}</div>
+      <div class="timeline">
+        {% for row in group.list %}
+        <div class="event">
+          <div class="meta">{{ row.created_at }}</div>
+          {% if row.storage_url %}
+          <a class="file-link" href="{{ row.storage_url }}" target="_blank" rel="noopener noreferrer" download>
+            {{ row.filename or 'Файл' }}
+          </a>
+          {% else %}
+          <div><strong>{{ row.filename or 'Файл' }}</strong></div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">Файлов по этой заявке пока нет.</div>
+    {% endfor %}
   </article>
 </section>
 {% endblock %}
