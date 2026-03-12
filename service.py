@@ -212,6 +212,7 @@ def ingest_event(conn, payload: dict[str, Any]) -> dict[str, Any]:
             (
                 application_id,
                 revision_id,
+                source_file_id,
                 f.get("file_type"),
                 f.get("original_filename"),
                 f.get("mime_type"),
