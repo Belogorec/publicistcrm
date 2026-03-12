@@ -178,7 +178,12 @@
   </article>
 
   <article class="panel">
-    <h2>Файлы заявки</h2>
+    <div class="panel-head">
+      <h2>Файлы заявки</h2>
+      {% if attachments %}
+      <a class="file-download-all" href="{{ url_for('download_all_attachments', application_id=app_row.id) }}">Скачать все</a>
+      {% endif %}
+    </div>
     {% for group in attachments|groupby('category') %}
     <div class="file-group">
       <div class="file-group-title">{{ group.grouper or 'Файлы' }}</div>

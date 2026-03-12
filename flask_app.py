@@ -1,4 +1,6 @@
 import traceback
+import zipfile
+from io import BytesIO
 
 import requests
 from flask import Flask, Response, abort, redirect, render_template, request, url_for
@@ -341,6 +343,85 @@ def notify_client(application_id: int):
     return redirect(url_for("application_detail", application_id=application_id, msg="notified"))
 
 
+def _tg_file_bytes(tg_file_id: str) -> tuple[bytes, str]:
+    meta_resp = requests.get(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
+        params={"file_id": tg_file_id},
+        timeout=10,
+    )
+    meta = meta_resp.json() if meta_resp.ok else {}
+    file_path = ((meta.get("result") or {}).get("file_path") or "").strip()
+    if not file_path:
+        raise ValueError("telegram_file_path_not_found")
+
+    file_resp = requests.get(
+        f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}",
+        timeout=20,
+    )
+    if not file_resp.ok:
+        raise ValueError("telegram_file_download_failed")
+
+    return file_resp.content, file_resp.headers.get("Content-Type") or "application/octet-stream"
+
+
+@app.route("/applications/<int:application_id>/attachments/download-all", methods=["GET"])
+def download_all_attachments(application_id: int):
+    if not BOT_TOKEN:
+        abort(503)
+
+    conn = connect()
+    try:
+        app_row = conn.execute(
+            "SELECT external_lead_id FROM applications WHERE id = ?",
+            (application_id,),
+        ).fetchone()
+        if not app_row:
+            abort(404)
+
+        rows = conn.execute(
+            """
+            SELECT id, source_file_id, filename
+            FROM attachments
+            WHERE application_id = ?
+            ORDER BY id
+            """,
+            (application_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        abort(404)
+
+    zip_buf = BytesIO()
+    added = 0
+    with zipfile.ZipFile(zip_buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for idx, row in enumerate(rows, start=1):
+            tg_file_id = str(row["source_file_id"] or "")
+            if not tg_file_id:
+                continue
+            try:
+                file_bytes, _ = _tg_file_bytes(tg_file_id)
+            except Exception:
+                traceback.print_exc()
+                continue
+
+            name = (row["filename"] or "").strip() or f"file_{idx}"
+            if "." not in name:
+                name = f"{name}.bin"
+            zf.writestr(name, file_bytes)
+            added += 1
+
+    if added == 0:
+        abort(502)
+
+    zip_buf.seek(0)
+    lead_no = app_row["external_lead_id"]
+    resp = Response(zip_buf.getvalue(), mimetype="application/zip")
+    resp.headers["Content-Disposition"] = f'attachment; filename="lead_{lead_no}_files.zip"'
+    return resp
+
+
 @app.route("/attachments/<int:attachment_id>/download", methods=["GET"])
 def download_attachment(attachment_id: int):
     if not BOT_TOKEN:
@@ -366,25 +447,9 @@ def download_attachment(attachment_id: int):
     filename = row["filename"] or f"attachment_{attachment_id}"
 
     try:
-        meta_resp = requests.get(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
-            params={"file_id": tg_file_id},
-            timeout=10,
-        )
-        meta = meta_resp.json() if meta_resp.ok else {}
-        file_path = ((meta.get("result") or {}).get("file_path") or "").strip()
-        if not file_path:
-            abort(404)
-
-        file_resp = requests.get(
-            f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}",
-            timeout=20,
-        )
-        if not file_resp.ok:
-            abort(502)
-
-        content_type = row["mime_type"] or file_resp.headers.get("Content-Type") or "application/octet-stream"
-        resp = Response(file_resp.content, mimetype=content_type)
+        file_bytes, detected_type = _tg_file_bytes(tg_file_id)
+        content_type = row["mime_type"] or detected_type
+        resp = Response(file_bytes, mimetype=content_type)
         resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
         return resp
     except Exception:

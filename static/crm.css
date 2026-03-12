@@ -462,6 +462,35 @@ h2 {
   margin-bottom: 12px;
 }
 
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
+.file-download-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  padding: 7px 11px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.file-download-all:hover {
+  border-color: var(--accent);
+}
+
 .file-group-title {
   font-size: 12px;
   color: var(--muted);
