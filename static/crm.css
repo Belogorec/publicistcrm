@@ -355,3 +355,117 @@ h2 {
     padding: 12px;
   }
 }
+
+/* ── Action panel ───────────────────────────────────────────── */
+
+.action-banner {
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.action-banner--ok {
+  background: #edfaf3;
+  border: 1px solid #a3e6c2;
+  color: #1a6b45;
+}
+
+.action-banner--error {
+  background: #fdf2f2;
+  border: 1px solid #f5c3c3;
+  color: #8b1c1c;
+}
+
+.actions-panel {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-card h2 {
+  margin: 0;
+}
+
+.action-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.action-card textarea {
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text);
+  min-height: 60px;
+}
+
+.action-card textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.action-card select {
+  flex: 1;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-row--bottom {
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.action-row button,
+.action-card > form > button {
+  white-space: nowrap;
+}
+
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.check-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .actions-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .actions-panel {
+    grid-template-columns: 1fr;
+  }
+}

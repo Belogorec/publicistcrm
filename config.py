@@ -10,3 +10,4 @@ CRM_DB_PATH = os.getenv(
     os.path.join(os.path.dirname(__file__), "data", "projectpress_crm.db"),
 ).strip()
 CRM_DEFAULT_MANAGER = os.getenv("CRM_DEFAULT_MANAGER", "").strip() or None
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()

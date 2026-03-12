@@ -240,3 +240,68 @@ def ingest_event(conn, payload: dict[str, Any]) -> dict[str, Any]:
         "revision": iteration,
         "status": crm_status,
     }
+
+
+def change_status(
+    conn,
+    application_id: int,
+    new_status: str,
+    actor: str,
+    comment: Optional[str],
+) -> None:
+    app_row = conn.execute(
+        "SELECT status FROM applications WHERE id = ?",
+        (application_id,),
+    ).fetchone()
+    if not app_row:
+        raise ValueError("application not found")
+    old_status = app_row["status"]
+    status_group = _status_group(new_status)
+    archived = 1 if new_status in ("Отклонена", "Архив", "Отменено клиентом", "Закрыто") else 0
+    conn.execute(
+        """
+        UPDATE applications
+        SET status = ?, status_group = ?, archived = ?, updated_at = datetime('now')
+        WHERE id = ?
+        """,
+        (new_status, status_group, archived, application_id),
+    )
+    if old_status != new_status:
+        conn.execute(
+            """
+            INSERT INTO status_history (application_id, old_status, new_status, changed_by, comment)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (application_id, old_status, new_status, actor, comment),
+        )
+    conn.commit()
+
+
+def add_crm_comment(
+    conn,
+    application_id: int,
+    text: str,
+    author: str,
+    is_internal: bool,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO comments (application_id, source, is_internal, text, author_telegram_id)
+        VALUES (?, 'crm_manual', ?, ?, ?)
+        """,
+        (application_id, 1 if is_internal else 0, text, author),
+    )
+    conn.commit()
+
+
+def get_client_telegram_id(conn, application_id: int) -> Optional[str]:
+    row = conn.execute(
+        """
+        SELECT c.telegram_id
+        FROM applications a
+        JOIN clients c ON c.id = a.client_id
+        WHERE a.id = ?
+        """,
+        (application_id,),
+    ).fetchone()
+    return row["telegram_id"] if row else None

@@ -1,12 +1,69 @@
 {% extends 'base.html' %}
-{% block title %}Заявка #{{ app_row.external_lead_id }} | ProjectPress CRM{% endblock %}
+{% block title %}Заявка #{{ app_row.external_lead_id }} | PUBLICIST CRM{% endblock %}
 {% block content %}
+
+{% if msg %}
+<div class="action-banner {% if msg == 'error' %}action-banner--error{% else %}action-banner--ok{% endif %}">
+  {% if msg == 'status_updated' %}✓ Статус успешно изменён
+  {% elif msg == 'comment_added' %}✓ Комментарий добавлен
+  {% elif msg == 'notified' %}✓ Сообщение отправлено клиенту
+  {% elif msg == 'error' %}✗ Произошла ошибка, проверьте логи
+  {% endif %}
+</div>
+{% endif %}
+
 <section class="top with-link">
   <div>
     <h1>Заявка #{{ app_row.external_lead_id }}</h1>
-    <p>Карточка заявки, версии, история статусов, файлы и платежи.</p>
+    <p>{{ app_row.client_name or app_row.telegram_username or app_row.telegram_id }} · {{ app_row.status }}</p>
   </div>
   <a href="{{ url_for('applications_list') }}" class="ghost">К реестру</a>
+</section>
+
+<section class="actions-panel">
+  <article class="panel action-card">
+    <h2>Сменить статус</h2>
+    <form method="post" action="{{ url_for('set_status', application_id=app_row.id) }}">
+      <div class="action-row">
+        <select name="status" required>
+          {% for s in all_statuses %}
+          <option value="{{ s }}"{% if s == app_row.status %} selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Применить</button>
+      </div>
+      <textarea name="comment" placeholder="Комментарий к смене статуса (необязательно)" rows="2"></textarea>
+      <label class="check-label">
+        <input type="checkbox" name="notify" value="1" id="notifyCheck" onchange="document.getElementById('notifyTextBox').style.display=this.checked?'block':'none'">
+        Уведомить клиента в Telegram
+      </label>
+      <textarea name="notify_text" id="notifyTextBox" placeholder="Текст уведомления (если пусто — отправится стандартное сообщение о смене статуса)" rows="2" style="display:none"></textarea>
+    </form>
+  </article>
+
+  <article class="panel action-card">
+    <h2>Написать клиенту</h2>
+    <form method="post" action="{{ url_for('notify_client', application_id=app_row.id) }}">
+      <textarea name="text" placeholder="Произвольное сообщение клиенту в Telegram" rows="3" required></textarea>
+      <button type="submit">Отправить</button>
+    </form>
+  </article>
+
+  <article class="panel action-card">
+    <h2>Добавить комментарий</h2>
+    <form method="post" action="{{ url_for('add_comment', application_id=app_row.id) }}">
+      <textarea name="text" placeholder="Текст комментария" rows="3" required></textarea>
+      <div class="action-row action-row--bottom">
+        <label class="check-label">
+          <input type="checkbox" name="is_internal" value="1"> Только внутренний
+        </label>
+        <label class="check-label">
+          <input type="checkbox" name="notify" value="1"> Отправить клиенту
+        </label>
+        <button type="submit">Сохранить</button>
+      </div>
+    </form>
+  </article>
 </section>
 
 <section class="grid">

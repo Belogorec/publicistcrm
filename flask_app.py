@@ -1,10 +1,13 @@
 import traceback
 
-from flask import Flask, abort, render_template, request
+from flask import Flask, abort, redirect, render_template, request, url_for
 
 from config import CRM_INGEST_API_KEY
-from db import connect, run_migrations
-from service import ingest_event
+from db import STATUS_GROUPS, connect, run_migrations
+from service import add_crm_comment, change_status, get_client_telegram_id, ingest_event
+from telegram_notify import send_to_client, status_change_text
+
+ALL_STATUSES = list(STATUS_GROUPS.keys())
 
 app = Flask(__name__)
 
@@ -259,7 +262,82 @@ def application_detail(application_id: int):
         revisions=revisions,
         orders=orders,
         payments=payments,
+        all_statuses=ALL_STATUSES,
+        msg=(request.args.get("msg") or ""),
     )
+
+
+@app.route("/applications/<int:application_id>/set-status", methods=["POST"])
+def set_status(application_id: int):
+    new_status = (request.form.get("status") or "").strip()
+    comment = (request.form.get("comment") or "").strip() or None
+    notify = request.form.get("notify") == "1"
+    notify_text = (request.form.get("notify_text") or "").strip()
+
+    if not new_status or new_status not in STATUS_GROUPS:
+        return redirect(url_for("application_detail", application_id=application_id, msg="error"))
+
+    conn = connect()
+    try:
+        change_status(conn, application_id, new_status, "crm", comment)
+        if notify:
+            tg_id = get_client_telegram_id(conn, application_id)
+            if tg_id:
+                text = notify_text or status_change_text(new_status, comment or "")
+                send_to_client(tg_id, text)
+    except Exception:
+        traceback.print_exc()
+        return redirect(url_for("application_detail", application_id=application_id, msg="error"))
+    finally:
+        conn.close()
+
+    return redirect(url_for("application_detail", application_id=application_id, msg="status_updated"))
+
+
+@app.route("/applications/<int:application_id>/add-comment", methods=["POST"])
+def add_comment(application_id: int):
+    text = (request.form.get("text") or "").strip()
+    is_internal = request.form.get("is_internal") == "1"
+    notify = request.form.get("notify") == "1"
+
+    if not text:
+        return redirect(url_for("application_detail", application_id=application_id))
+
+    conn = connect()
+    try:
+        add_crm_comment(conn, application_id, text, "crm", is_internal)
+        if notify and not is_internal:
+            tg_id = get_client_telegram_id(conn, application_id)
+            if tg_id:
+                send_to_client(tg_id, text)
+    except Exception:
+        traceback.print_exc()
+        return redirect(url_for("application_detail", application_id=application_id, msg="error"))
+    finally:
+        conn.close()
+
+    return redirect(url_for("application_detail", application_id=application_id, msg="comment_added"))
+
+
+@app.route("/applications/<int:application_id>/notify", methods=["POST"])
+def notify_client(application_id: int):
+    text = (request.form.get("text") or "").strip()
+
+    if not text:
+        return redirect(url_for("application_detail", application_id=application_id))
+
+    conn = connect()
+    try:
+        tg_id = get_client_telegram_id(conn, application_id)
+        if tg_id:
+            send_to_client(tg_id, text)
+    except Exception:
+        traceback.print_exc()
+        return redirect(url_for("application_detail", application_id=application_id, msg="error"))
+    finally:
+        conn.close()
+
+    return redirect(url_for("application_detail", application_id=application_id, msg="notified"))
 
 
 @app.route("/api/events", methods=["POST"])
