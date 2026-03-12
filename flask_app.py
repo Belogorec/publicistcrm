@@ -1,11 +1,14 @@
 import traceback
 import zipfile
+from functools import wraps
 from io import BytesIO
+from typing import Optional
 
 import requests
-from flask import Flask, Response, abort, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, redirect, render_template, request, url_for, make_response
 
-from config import BOT_TOKEN, CRM_INGEST_API_KEY
+from auth_service import create_auth_code, confirm_auth_code, get_session_user, invalidate_session, validate_and_create_session
+from config import ADMIN_IDS, BOT_TOKEN, CRM_INGEST_API_KEY, SESSION_SECRET_KEY
 from db import STATUS_GROUPS, connect, run_migrations
 from service import add_crm_comment, change_status, get_client_telegram_id, ingest_event
 from telegram_notify import send_to_client, status_change_text
@@ -13,6 +16,7 @@ from telegram_notify import send_to_client, status_change_text
 ALL_STATUSES = list(STATUS_GROUPS.keys())
 
 app = Flask(__name__)
+app.secret_key = SESSION_SECRET_KEY
 
 
 def bootstrap_schema() -> None:
@@ -33,12 +37,109 @@ def _safe_int(value: str):
         return None
 
 
+def _get_session_id() -> Optional[str]:
+    return request.cookies.get("auth_session")
+
+
+def _is_authenticated() -> bool:
+    session_id = _get_session_id()
+    if not session_id:
+        return False
+    return get_session_user(session_id) is not None
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not _is_authenticated():
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.context_processor
+def inject_session_user():
+    session_id = _get_session_id()
+    if session_id:
+        user = get_session_user(session_id)
+        if user:
+            return {"session_user": user}
+    return {"session_user": None}
+
+
 @app.route("/health", methods=["GET"])
 def health() -> tuple[dict, int]:
     return {"status": "ok"}, 200
 
 
+@app.route("/login", methods=["GET"])
+def login():
+    if _is_authenticated():
+        return redirect(url_for("applications_list"))
+
+    bot_username = ""
+    if BOT_TOKEN:
+        try:
+            resp = requests.get(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/getMe",
+                timeout=5,
+            )
+            if resp.ok:
+                bot_username = resp.json().get("result", {}).get("username", "")
+        except Exception:
+            pass
+
+    code = request.args.get("code", "").strip()
+    error = (request.args.get("error") or "").strip() or None
+    return render_template(
+        "login.html",
+        code=code,
+        bot_username=bot_username,
+        error=error,
+        show_request_code=(not code),
+    )
+
+
+@app.route("/request-auth-code", methods=["POST"])
+def request_auth_code():
+    code = create_auth_code()
+    return redirect(url_for("login", code=code))
+
+
+@app.route("/confirm-auth-code", methods=["POST"])
+def confirm_auth_code_route():
+    code = (request.form.get("code") or "").strip()
+    if not code:
+        return redirect(url_for("login", error="Код не указан"))
+
+    session_id = validate_and_create_session(code, ADMIN_IDS)
+    if not session_id:
+        return redirect(url_for("login", code=code, error="Код не подтвержден ботом или истек. Попробуйте еще раз."))
+
+    resp = make_response(redirect(url_for("applications_list")))
+    resp.set_cookie(
+        "auth_session",
+        session_id,
+        max_age=86400,
+        secure=True,
+        httponly=True,
+        samesite="Strict",
+    )
+    return resp
+
+
+@app.route("/logout", methods=["GET", "POST"])
+def logout():
+    session_id = _get_session_id()
+    if session_id:
+        invalidate_session(session_id)
+    resp = make_response(redirect(url_for("login")))
+    resp.set_cookie("auth_session", "", max_age=0)
+    return resp
+
+
 @app.route("/", methods=["GET"])
+@login_required
 def applications_list():
     status = (request.args.get("status") or "").strip()
     date_from = (request.args.get("date_from") or "").strip()
@@ -173,6 +274,7 @@ def applications_list():
 
 
 @app.route("/applications/<int:application_id>", methods=["GET"])
+@login_required
 def application_detail(application_id: int):
     conn = connect()
     try:
@@ -271,6 +373,7 @@ def application_detail(application_id: int):
 
 
 @app.route("/applications/<int:application_id>/set-status", methods=["POST"])
+@login_required
 def set_status(application_id: int):
     new_status = (request.form.get("status") or "").strip()
     comment = (request.form.get("comment") or "").strip() or None
@@ -298,6 +401,7 @@ def set_status(application_id: int):
 
 
 @app.route("/applications/<int:application_id>/add-comment", methods=["POST"])
+@login_required
 def add_comment(application_id: int):
     text = (request.form.get("text") or "").strip()
     is_internal = request.form.get("is_internal") == "1"
@@ -323,6 +427,7 @@ def add_comment(application_id: int):
 
 
 @app.route("/applications/<int:application_id>/notify", methods=["POST"])
+@login_required
 def notify_client(application_id: int):
     text = (request.form.get("text") or "").strip()
 
@@ -365,6 +470,7 @@ def _tg_file_bytes(tg_file_id: str) -> tuple[bytes, str]:
 
 
 @app.route("/applications/<int:application_id>/attachments/download-all", methods=["GET"])
+@login_required
 def download_all_attachments(application_id: int):
     if not BOT_TOKEN:
         abort(503)
@@ -423,6 +529,7 @@ def download_all_attachments(application_id: int):
 
 
 @app.route("/attachments/<int:attachment_id>/download", methods=["GET"])
+@login_required
 def download_attachment(attachment_id: int):
     if not BOT_TOKEN:
         abort(503)
@@ -455,6 +562,28 @@ def download_attachment(attachment_id: int):
     except Exception:
         traceback.print_exc()
         abort(502)
+
+
+@app.route("/api/auth/confirm-code", methods=["POST"])
+def api_confirm_auth_code() -> tuple[dict, int]:
+    payload = request.get_json(force=True, silent=True) or {}
+    provided_token = (payload.get("bot_token") or "").strip()
+    code = (payload.get("code") or "").strip()
+    telegram_id_raw = payload.get("telegram_id")
+
+    if not BOT_TOKEN or provided_token != BOT_TOKEN:
+        return {"ok": False, "error": "unauthorized"}, 403
+    if not code or telegram_id_raw is None:
+        return {"ok": False, "error": "missing_fields"}, 400
+
+    try:
+        telegram_id = int(telegram_id_raw)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "invalid_telegram_id"}, 400
+
+    if confirm_auth_code(code, telegram_id):
+        return {"ok": True}, 200
+    return {"ok": False, "error": "invalid_or_expired_code"}, 400
 
 
 @app.route("/api/events", methods=["POST"])

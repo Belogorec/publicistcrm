@@ -189,6 +189,30 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_status_history_app ON status_history(application_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_comments_app ON comments(application_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_attachments_app ON attachments(application_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS auth_sessions (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id      TEXT NOT NULL UNIQUE,
+            telegram_id     TEXT NOT NULL,
+            username        TEXT,
+            full_name       TEXT,
+            expires_at      TEXT NOT NULL,
+            created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS auth_codes (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            code            TEXT NOT NULL UNIQUE,
+            telegram_id     TEXT,
+            confirmed       INTEGER NOT NULL DEFAULT 0,
+            expires_at      TEXT NOT NULL,
+            created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_auth_sessions_session_id ON auth_sessions(session_id);
+        CREATE INDEX IF NOT EXISTS idx_auth_sessions_telegram_id ON auth_sessions(telegram_id);
+        CREATE INDEX IF NOT EXISTS idx_auth_codes_code ON auth_codes(code);
+        CREATE INDEX IF NOT EXISTS idx_auth_codes_telegram_id ON auth_codes(telegram_id);
         """
     )
     conn.commit()

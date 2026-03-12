@@ -8,6 +8,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='crm.css') }}">
+  <style>
+    .user-info { font-size: 11px; color: #999; margin-top: auto; padding: 16px; border-top: 1px solid #eee; text-align: center; }
+    .user-name { font-weight: 600; color: #666; margin-bottom: 8px; }
+    .logout-btn { width: 100%; padding: 6px; font-size: 11px; background: #fee; color: #c33; border: 1px solid #fcc; border-radius: 3px; cursor: pointer; text-decoration: none; display: block; }
+    .side { display: flex; flex-direction: column; }
+  </style>
 </head>
 <body>
   <div class="layout">
@@ -16,6 +22,12 @@
       <nav class="menu">
         <a href="{{ url_for('applications_list') }}" class="menu-link">Реестр заявок</a>
       </nav>
+      {% if session_user %}
+      <div class="user-info">
+        <div class="user-name">{{ session_user.full_name or session_user.username or session_user.telegram_id }}</div>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Выход</a>
+      </div>
+      {% endif %}
     </aside>
     <main class="main">
       {% block content %}{% endblock %}
