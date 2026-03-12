@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Реестр заявок | ProjectPress CRM{% endblock %}
+{% block content %}
+<section class="top">
+  <h1>Реестр заявок</h1>
+  <p>Лента обращений из Telegram-бота с фильтрами и быстрым поиском.</p>
+</section>
+
+<section class="cards">
+  <div class="metric-card">
+    <span>Всего заявок</span>
+    <strong>{{ summary.total or 0 }}</strong>
+  </div>
+  <div class="metric-card">
+    <span>Активные</span>
+    <strong>{{ summary.active or 0 }}</strong>
+  </div>
+  <div class="metric-card">
+    <span>В архиве</span>
+    <strong>{{ summary.archived or 0 }}</strong>
+  </div>
+  <div class="metric-card">
+    <span>Сумма заявок</span>
+    <strong>{{ '{:,.0f}'.format(summary.total_amount or 0).replace(',', ' ') }} ₽</strong>
+  </div>
+</section>
+
+<section class="panel">
+  <form method="get" class="filters">
+    <input type="text" name="q" placeholder="Поиск: клиент, @username, № заявки, компания, тема" value="{{ filters.q }}">
+    <select name="status">
+      <option value="">Все статусы</option>
+      {% for s in statuses %}
+      <option value="{{ s.status }}" {% if filters.status == s.status %}selected{% endif %}>{{ s.status }} ({{ s.cnt }})</option>
+      {% endfor %}
+    </select>
+    <select name="payment_status">
+      <option value="">Любая оплата</option>
+      {% for s in payment_statuses %}
+      <option value="{{ s.payment_status }}" {% if filters.payment_status == s.payment_status %}selected{% endif %}>{{ s.payment_status }} ({{ s.cnt }})</option>
+      {% endfor %}
+    </select>
+    <select name="archived">
+      <option value="">Активные и архив</option>
+      <option value="0" {% if filters.archived == '0' %}selected{% endif %}>Только активные</option>
+      <option value="1" {% if filters.archived == '1' %}selected{% endif %}>Только архив</option>
+    </select>
+    <input type="text" name="client" placeholder="Клиент" value="{{ filters.client }}">
+    <input type="text" name="media" placeholder="Площадка" value="{{ filters.media }}">
+    <select name="manager_id">
+      <option value="">Любой менеджер</option>
+      {% for m in managers %}
+      <option value="{{ m.id }}" {% if filters.manager_id == (m.id|string) %}selected{% endif %}>
+        {{ m.full_name or m.username or ('id=' ~ m.id) }}
+      </option>
+      {% endfor %}
+    </select>
+    <div class="date-box">
+      <label>С</label>
+      <input type="date" name="date_from" value="{{ filters.date_from }}">
+    </div>
+    <div class="date-box">
+      <label>По</label>
+      <input type="date" name="date_to" value="{{ filters.date_to }}">
+    </div>
+    <button type="submit">Применить</button>
+    <a href="{{ url_for('applications_list') }}" class="ghost">Сброс</a>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Создана</th>
+          <th>Клиент</th>
+          <th>Площадка / формат</th>
+          <th>Статус</th>
+          <th>Менеджер</th>
+          <th>Сумма</th>
+          <th>Оплата</th>
+          <th>Дедлайн</th>
+          <th>Файлы</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in applications %}
+        <tr>
+          <td>
+            <a href="{{ url_for('application_detail', application_id=row.id) }}">#{{ row.external_lead_id }}</a>
+          </td>
+          <td>{{ row.created_at }}</td>
+          <td>
+            <div>{{ row.client_name or '—' }}</div>
+            <small>@{{ row.telegram_username or '—' }} · {{ row.telegram_id }}</small>
+          </td>
+          <td>
+            <div>{{ row.media or '—' }}</div>
+            <small>{{ row.placement_format or '—' }}</small>
+          </td>
+          <td><span class="badge">{{ row.status }}</span></td>
+          <td>{{ row.manager_name or '—' }}</td>
+          <td>{{ '{:,.0f}'.format(row.amount or 0).replace(',', ' ') }} ₽</td>
+          <td>{{ row.payment_status }}</td>
+          <td>{{ row.deadline_at or '—' }}</td>
+          <td>{{ row.files_count }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="empty">По текущим фильтрам заявок нет.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

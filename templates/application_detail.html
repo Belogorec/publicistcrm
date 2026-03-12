@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Заявка #{{ app_row.external_lead_id }} | ProjectPress CRM{% endblock %}
+{% block content %}
+<section class="top with-link">
+  <div>
+    <h1>Заявка #{{ app_row.external_lead_id }}</h1>
+    <p>Карточка заявки, версии, история статусов, файлы и платежи.</p>
+  </div>
+  <a href="{{ url_for('applications_list') }}" class="ghost">К реестру</a>
+</section>
+
+<section class="grid">
+  <article class="panel">
+    <h2>Основное</h2>
+    <ul class="kv">
+      <li><span>Статус</span><strong>{{ app_row.status }}</strong></li>
+      <li><span>Сумма</span><strong>{{ '{:,.0f}'.format(app_row.amount or 0).replace(',', ' ') }} ₽</strong></li>
+      <li><span>Оплата</span><strong>{{ app_row.payment_status }}</strong></li>
+      <li><span>Площадка</span><strong>{{ app_row.media or '—' }}</strong></li>
+      <li><span>Формат</span><strong>{{ app_row.placement_format or '—' }}</strong></li>
+      <li><span>Дедлайн</span><strong>{{ app_row.deadline_at or '—' }}</strong></li>
+      <li><span>Создана</span><strong>{{ app_row.created_at }}</strong></li>
+      <li><span>Менеджер</span><strong>{{ app_row.manager_name or app_row.manager_username or '—' }}</strong></li>
+    </ul>
+  </article>
+
+  <article class="panel">
+    <h2>Клиент</h2>
+    <ul class="kv">
+      <li><span>Имя</span><strong>{{ app_row.client_name or '—' }}</strong></li>
+      <li><span>Username</span><strong>@{{ app_row.telegram_username or '—' }}</strong></li>
+      <li><span>Telegram ID</span><strong>{{ app_row.telegram_id }}</strong></li>
+      <li><span>Компания</span><strong>{{ app_row.company or '—' }}</strong></li>
+      <li><span>Телефон</span><strong>{{ app_row.phone or '—' }}</strong></li>
+      <li><span>Email</span><strong>{{ app_row.email or '—' }}</strong></li>
+      <li><span>Тип клиента</span><strong>{{ app_row.client_type or '—' }}</strong></li>
+    </ul>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="panel">
+    <h2>Таймлайн статусов</h2>
+    <div class="timeline">
+      {% for row in status_history %}
+      <div class="event">
+        <div class="meta">{{ row.created_at }} · {{ row.changed_by or 'system' }}</div>
+        <div><strong>{{ row.old_status or '—' }}</strong> → <strong>{{ row.new_status }}</strong></div>
+        {% if row.comment %}<div class="muted">{{ row.comment }}</div>{% endif %}
+      </div>
+      {% else %}
+      <div class="empty">Нет изменений статусов.</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <h2>История ревизий</h2>
+    <div class="timeline">
+      {% for row in revisions %}
+      <div class="event">
+        <div class="meta">Итерация {{ row.iteration }} · {{ row.created_at }}</div>
+        <div><strong>{{ row.source_event }}</strong></div>
+        <div class="muted">actor: {{ row.changed_by or 'system' }}</div>
+      </div>
+      {% else %}
+      <div class="empty">Ревизии пока отсутствуют.</div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="panel">
+    <h2>Комментарии и переписка</h2>
+    <div class="timeline">
+      {% for row in comments %}
+      <div class="event">
+        <div class="meta">{{ row.created_at }} · {{ 'internal' if row.is_internal else 'client' }}</div>
+        <div>{{ row.text or '—' }}</div>
+      </div>
+      {% else %}
+      <div class="empty">Комментариев пока нет.</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <h2>Файлы</h2>
+    <div class="timeline">
+      {% for row in attachments %}
+      <div class="event">
+        <div class="meta">{{ row.created_at }} · {{ row.category or 'file' }}</div>
+        <div><strong>{{ row.filename or row.source_file_id }}</strong></div>
+        <div class="muted">{{ row.mime_type or '—' }}</div>
+        {% if row.storage_url %}<div class="muted">{{ row.storage_url }}</div>{% endif %}
+      </div>
+      {% else %}
+      <div class="empty">Файлов пока нет.</div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="panel">
+    <h2>Заказы</h2>
+    <div class="timeline">
+      {% for row in orders %}
+      <div class="event">
+        <div class="meta">{{ row.created_at }} · {{ row.order_number or ('order-' ~ row.id) }}</div>
+        <div>Статус: <strong>{{ row.execution_status }}</strong></div>
+        <div>Оплата: <strong>{{ row.payment_status }}</strong></div>
+        <div>Сумма: <strong>{{ '{:,.0f}'.format(row.amount or 0).replace(',', ' ') }} ₽</strong></div>
+      </div>
+      {% else %}
+      <div class="empty">Заказов пока нет.</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <h2>Платежи</h2>
+    <div class="timeline">
+      {% for row in payments %}
+      <div class="event">
+        <div class="meta">{{ row.created_at }}</div>
+        <div>Сумма: <strong>{{ '{:,.0f}'.format(row.amount or 0).replace(',', ' ') }} {{ row.currency or 'RUB' }}</strong></div>
+        <div>Статус: <strong>{{ row.status }}</strong></div>
+        {% if row.provider_payment_id %}<div class="muted">ID: {{ row.provider_payment_id }}</div>{% endif %}
+      </div>
+      {% else %}
+      <div class="empty">Платежей пока нет.</div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}
