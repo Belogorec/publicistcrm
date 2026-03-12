@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления каталогом</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rubik', sans-serif;
+            background: #f9fafb;
+            color: #1f2937;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            color: #307FF2;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .control-section h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Rubik', sans-serif;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #307FF2;
+        }
+
+        button {
+            background: #307FF2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: 'Rubik', sans-serif;
+        }
+
+        button:hover {
+            background: #2567D1;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-outline {
+            background: white;
+            color: #307FF2;
+            border: 2px solid #307FF2;
+        }
+
+        .btn-outline:hover {
+            background: #eff6ff;
+        }
+
+        .product-link {
+            color: #307FF2 !important;
+            text-decoration: none;
+        }
+
+        .summary-box {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .summary-row.total {
+            border-top: 2px solid #e5e7eb;
+            padding-top: 12px;
+            margin-top: 12px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: box-shadow 0.3s;
+            display: flex;
+            min-height: 400px;
+        }
+
+        .product-card:hover {
+            box-shadow: 0 10px 15px rgba(0,0,0,0.15);
+        }
+
+        /* Левая колонка: 35% */
+        .product-left-column {
+            width: 35%;
+            background: #f9fafb;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .product-image-wrapper {
+            position: relative;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .product-image {
+            width: 100%;
+            height: auto;
+            max-height: 350px;
+            object-fit: contain;
+        }
+
+        .btn-remove {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        /* Правая колонка: 65% */
+        .product-right-column {
+            width: 65%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .product-content {
+            flex: 1;
+        }
+
+        .product-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .product-code {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+
+        /* Остальные характеристики в правой колонке */
+        .params-right {
+            margin-bottom: 12px;
+        }
+
+        .params-right .param-item {
+            margin-bottom: 4px;
+            font-size: 12px;
+            display: flex;
+            padding: 5px 0;
+            border-bottom: 1px solid #f3f4f6;
+            line-height: 1.3;
+        }
+
+        .params-right .param-label {
+            font-weight: 500;
+            color: #374151;
+            width: 45%;
+            flex-shrink: 0;
+        }
+
+        .params-right .param-value {
+            color: #6b7280;
+            width: 55%;
+        }
+
+        .params-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .params-table tr:nth-child(even) {
+            background: #f9fafb;
+        }
+
+        .params-table td {
+            padding: 8px 12px;
+            font-size: 13px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .params-table td:first-child {
+            font-weight: 500;
+            color: #374151;
+            width: 50%;
+        }
+
+        .params-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .price-section {
+            margin-bottom: 16px;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+        }
+
+        .price-label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .price-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .price-value.discounted {
+            color: #307FF2;
+        }
+
+        .controls-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .final-price {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 2px solid #e5e7eb;
+            margin-bottom: 16px;
+        }
+
+        .final-price-label {
+            font-weight: 600;
+        }
+
+        .final-price-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #307FF2;
+        }
+
+        .price-old {
+            text-decoration: line-through;
+            color: #9ca3af;
+            font-size: 13px;
+            display: block;
+        }
+
+        .export-section {
+            text-align: right;
+            margin-top: 24px;
+        }
+
+        .export-btn {
+            padding: 16px 32px;
+            font-size: 16px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .modal-description {
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .empty-state p {
+            color: #6b7280;
+            font-size: 18px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .alert-info {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            html, body {
+                width: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white;
+            }
+
+            .container {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            h1,
+            .controls-grid,
+            .export-section,
+            .btn-remove,
+            button,
+            .controls-row,
+            .alert,
+            .loading,
+            .modal-overlay,
+            .summary-box,
+            .control-section,
+            #printModeBar {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+            }
+
+            .header-card {
+                box-shadow: none;
+                border-radius: 0;
+                padding: 0 0 8px 0;
+                margin-bottom: 8px;
+                page-break-after: avoid;
+                background: white;
+            }
+
+            #managerInfo {
+                font-size: 13px !important;
+                line-height: 1.6 !important;
+                margin-bottom: 8px !important;
+                padding-bottom: 8px !important;
+                border-bottom: 3px solid #307FF2 !important;
+                page-break-after: avoid;
+            }
+
+            #managerInfo strong {
+                color: #307FF2;
+                font-weight: 700;
+                font-size: 14px;
+            }
+
+            #managerInfo div {
+                font-size: 13px !important;
+            }
+
+            .products-grid {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                font-size: 0;
+                overflow: visible;
+            }
+
+            .product-card {
+                display: inline-block !important;
+                vertical-align: top !important;
+                width: 45% !important;
+                max-width: 45% !important;
+                margin: 0 2.5% 8px 0 !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+                border-radius: 4px;
+                overflow: hidden !important;
+                font-size: 10px;
+                padding: 0 !important;
+                position: relative !important;
+            }
+
+            .product-card:nth-child(2n) {
+                margin-right: 0 !important;
+            }
+
+            .product-card::after {
+                content: "";
+                display: table;
+                clear: both;
+            }
+
+            /* Левая колонка: 35% - бутылка */
+            .product-image-wrapper {
+                width: 35% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 3mm !important;
+                float: left !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+                background: #f5f5f5;
+                overflow: visible !important;
+                border-right: 1px solid #ddd;
+                display: block !important;
+                box-sizing: border-box !important;
+            }
+
+            .product-image {
+                object-fit: contain !important;
+                width: 100% !important;
+                height: 50mm !important;
+                display: block !important;
+                margin: 0 0 3mm 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Правая колонка: 65% - контент */
+            .product-content {
+                width: 65% !important;
+                float: right !important;
+                padding: 3mm !important;
+                margin: 0 !important;
+                page-break-inside: avoid;
+                box-sizing: border-box !important;
+            }
+
+            .product-title {
+                font-size: 7px !important;
+                line-height: 1.2 !important;
+                margin: 0 0 1mm 0 !important;
+                page-break-after: avoid;
+                font-weight: 600;
+            }
+
+            .product-code {
+                font-size: 6px !important;
+                margin: 0 0 2mm 0 !important;
+                color: #666;
+            }
+
+            /* Таблица характеристик */
+            .params-table {
+                font-size: 6px !important;
+                width: 100% !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: table !important;
+                border-collapse: collapse !important;
+            }
+
+            /* Первые 4 строки - переносим в левую колонку */
+            .params-table tr:nth-child(1),
+            .params-table tr:nth-child(2),
+            .params-table tr:nth-child(3),
+            .params-table tr:nth-child(4) {
+                display: block !important;
+                position: absolute !important;
+                left: 3mm !important;
+                width: calc(35% - 6mm) !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: none !important;
+                border: none !important;
+            }
+
+            .params-table tr:nth-child(1) { top: 56mm !important; }
+            .params-table tr:nth-child(2) { top: 64mm !important; }
+            .params-table tr:nth-child(3) { top: 72mm !important; }
+            .params-table tr:nth-child(4) { top: 80mm !important; }
+
+            /* Остальные строки - в правой колонке */
+            .params-table tr {
+                display: block !important;
+                margin: 0 0 1.5mm 0 !important;
+                padding: 0 !important;
+                background: none !important;
+                border: none !important;
+            }
+
+            .params-table tr:nth-child(n+5) {
+                position: static !important;
+                width: auto !important;
+            }
+
+            .params-table td {
+                padding: 0 !important;
+                line-height: 1.2 !important;
+                display: block !important;
+                border: none !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+
+            .params-table td:first-child {
+                font-weight: 600 !important;
+                margin: 0 0 0.3mm 0 !important;
+                font-size: 6px !important;
+                color: #333 !important;
+            }
+
+            .params-table td:last-child {
+                color: #555 !important;
+                font-size: 5.5px !important;
+                margin: 0 !important;
+            }
+
+            .price-section {
+                page-break-inside: avoid;
+                margin-bottom: 4px !important;
+            }
+
+            .price-row {
+                margin-bottom: 2px !important;
+            }
+
+            .price-label {
+                font-size: 7px !important;
+            }
+
+            .price-value {
+                font-size: 8px !important;
+            }
+
+            .final-price {
+                padding-top: 4px !important;
+                margin-bottom: 4px !important;
+                page-break-inside: avoid;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .final-price-label {
+                font-size: 8px !important;
+                font-weight: 600;
+            }
+
+            .final-price-value {
+                font-size: 11px !important;
+                font-weight: 700;
+            }
+
+            .price-old {
+                font-size: 7px !important;
+            }
+
+            .product-link {
+                display: inline-block !important;
+                padding: 4px 8px !important;
+                font-size: 7px !important;
+                margin-top: 4px !important;
+                text-decoration: none !important;
+                border: 1px solid #307FF2 !important;
+                color: #307FF2 !important;
+                border-radius: 3px !important;
+                background: white !important;
+                text-align: center !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            .product-card,
+            .product-card * {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-card">
+            <h1>Система управленя товарным каталогом</h1>
+            
+            <div class="controls-grid">
+                <div class="control-section">
+                    <h2>Добавить товар</h2>
+                    <div class="input-group">
+                        <input 
+                            type="text" 
+                            id="articleInput" 
+                            placeholder="Введите артикулы (через пробел, запятую или слеш)"
+                        >
+                        <button onclick="searchProducts()">Найти</button>
+                    </div>
+                    <button class="btn-outline" onclick="resetAll()" style="width: 100%; margin-top: 12px;">Сбросить всё</button>
+                    <div id="searchAlert"></div>
+                </div>
+
+                <div class="control-section">
+                    <h2>Применить скидку</h2>
+                    <div class="form-group">
+                        <label>Общая скидка на все товары (%)</label>
+                        <input 
+                            type="number" 
+                            id="globalDiscount" 
+                            min="0" 
+                            max="100" 
+                            step="0.1" 
+                            value="0"
+                            onchange="updateAllPrices()"
+                        >
+                    </div>
+                    <div id="summaryBox" class="summary-box" style="display: none;">
+                        <div class="summary-row">
+                            <span>Сумма без скидок:</span>
+                            <span id="totalOriginal">0 ₽</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>После общей скидки:</span>
+                            <span style="color: #307FF2;" id="totalAfterGlobal">0 ₽</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Итого:</span>
+                            <span style="color: #307FF2;" id="totalFinal">0 ₽</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="export-section" id="exportSection" style="display: none;">
+                <button class="export-btn" onclick="openManagerModal()">Подготовить к экспорту в PDF</button>
+            </div>
+        </div>
+
+        <div id="productsContainer">
+            <div class="empty-state">
+                <p>Добавьте товары, используя поиск по артикулам</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="managerModal">
+        <div class="modal">
+            <h2>Данные менеджера</h2>
+            <p class="modal-description">Выберите менеджера из списка или введите данные вручную</p>
+
+            <div class="form-group">
+                <label>Выбрть менеджера</label>
+                <select id="managerTemplate" onchange="selectManagerTemplate()">
+                    <option value="">Выберите из списка...</option>
+                    <option value="Романова Ирина|+79255065726">Романова Ирина - +79255065726</option>
+                    <option value="Добин Антон|+79686030295">Добин Антон - +79686030295</option>
+                    <option value="Смирнов Яков|+79057882588">Смирнов Яков - +79057882588</option>
+                    <option value="Маркотенко Ксения|+79941055018">Маркотенко Ксения - +79941055018</option>
+                    <option value="Нуцубидзе Дмитрий|+79819355212">Нуцубидзе Дмитрий - +79819355212</option>
+                    <option value="Турашева Елена|+79539122221">Турашева Елена - +79539122221</option>
+                    <option value="Кортева Светлана|+79827340426">Кортева Светлана - +79827340426</option>
+                    <option value="custom">Ввести вручную</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>ФИО менеджера *</label>
+                <input type="text" id="managerName" placeholder="Введите ФИО">
+            </div>
+
+            <div class="form-group">
+                <label>Телефон *</label>
+                <input type="text" id="managerPhone" placeholder="+7 (XXX) XXX-XX-XX">
+            </div>
+
+            <div class="form-group">
+                <label>Организация</label>
+                <input type="text" id="managerOrg" value="Vine Space trade" disabled style="background: #f3f4f6;">
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-outline" onclick="closeManagerModal()">Отмена</button>
+                <button onclick="exportToPDF()">Экспорт в PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const YML_URL = 'https://vinespacetrade.ru/tstore/yml/348d78afa8bef32493a10bbc7089ab15.yml';
+        
+        let ymlData = [];
+        let products = [];
+        // Счётчик для уникальных instanceId каждой карточки
+        let _instanceCounter = 0;
+
+        window.addEventListener('DOMContentLoaded', function() {
+            loadYML();
+        });
+
+        async function loadYML() {
+            try {
+                const response = await fetch(YML_URL);
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                
+                const text = await response.text();
+                ymlData = parseYML(text);
+                console.log('YML загружен успешно. Товаров:', ymlData.length);
+                return true;
+            } catch (error) {
+                console.error('Ошибка загрузки YML:', error);
+                console.log('Продолжаем работу - данные будут загружаться при поиске');
+                return false;
+            }
+        }
+
+        function parseYML(xmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+            const offers = xmlDoc.querySelectorAll('offer');
+            const productsData = [];
+
+            offers.forEach(offer => {
+                const id = offer.getAttribute('id');
+                const vendorCode = offer.querySelector('vendorCode')?.textContent || id;
+                const name = offer.querySelector('name')?.textContent || '';
+                const price = parseFloat(offer.querySelector('price')?.textContent || 0);
+                const image = offer.querySelector('picture')?.textContent || '';
+                const url = offer.querySelector('url')?.textContent || '';
+                
+                const params = {};
+                const paramElements = offer.querySelectorAll('param');
+                paramElements.forEach(param => {
+                    const paramName = param.getAttribute('name');
+                    const paramValue = param.textContent;
+                    if (paramName && paramValue) {
+                        params[paramName] = paramValue;
+                    }
+                });
+
+                const description = offer.querySelector('description')?.textContent || '';
+                if (description) {
+                    params['Опсание'] = description;
+                }
+
+                productsData.push({
+                    id,
+                    vendorCode,
+                    name,
+                    price,
+                    image,
+                    url,
+                    params
+                });
+            });
+
+            return productsData;
+        }
+
+        async function searchProducts() {
+            try {
+                const input = document.getElementById('articleInput').value;
+                const alertDiv = document.getElementById('searchAlert');
+                
+                if (!input.trim()) {
+                    alertDiv.innerHTML = '<div class="alert alert-error">Введите артикулы товаров</div>';
+                    return;
+                }
+
+                if (ymlData.length === 0) {
+                    alertDiv.innerHTML = '<div class="loading">⏳ Загрузка каталога из YML файла...</div>';
+                    const success = await loadYML();
+                    
+                    if (!success) {
+                        alertDiv.innerHTML = '<div class="alert alert-error">❌ Не удалось загрузить каталог<br><small style="margin-top:8px;display:block;">Проверьте URL: ' + YML_URL + '<br>Возможно, проблема с доступом к файлу (CORS)</small></div>';
+                        return;
+                    }
+                    
+                    alertDiv.innerHTML = '<div class="alert alert-success">✅ Каталог загружен! Найдено товаров: ' + ymlData.length + '</div>';
+                    setTimeout(function() {
+                        searchProductsInLoadedData(input, alertDiv);
+                    }, 1000);
+                    return;
+                }
+
+                searchProductsInLoadedData(input, alertDiv);
+            } catch (error) {
+                console.error('Ошибка при поиске товаров:', error);
+                const alertDiv = document.getElementById('searchAlert');
+                if (alertDiv) {
+                    alertDiv.innerHTML = '<div class="alert alert-error">Произошла ошибка при поиске. Попробуйте снова.</div>';
+                }
+            }
+        }
+
+        function searchProductsInLoadedData(input, alertDiv) {
+            if (!ymlData || ymlData.length === 0) {
+                alertDiv.innerHTML = '<div class="alert alert-error">Каталог пуст или не загружен</div>';
+                return;
+            }
+
+            // Сохраняем порядок ввода артикулов
+            const articles = input.split(/[\s,/]+/).map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
+
+            let addedCount = 0;
+            const notFound = [];
+
+            // Для каждого артикула в порядке ввода ищем первое совпадение и добавляем карточку.
+            // Один и тот же товар по двум разным артикулам → две карточки.
+            articles.forEach(article => {
+                const match = ymlData.find(p => {
+                    const vendorCodeLower = p.vendorCode.toLowerCase();
+                    // Точное совпадение
+                    if (vendorCodeLower === article) return true;
+                    // Частичное совпадение: если введено 4+ символа и они есть в артикуле
+                    if (article.length >= 4 && vendorCodeLower.includes(article)) return true;
+                    return false;
+                });
+
+                if (match) {
+                    products.push({
+                        ...match,
+                        instanceId: match.id + '_' + (++_instanceCounter),
+                        quantity: 1,
+                        individualDiscount: 0
+                    });
+                    addedCount++;
+                } else {
+                    notFound.push(article);
+                }
+            });
+
+            if (addedCount === 0) {
+                alertDiv.innerHTML = '<div class="alert alert-error">Товары с указанными артикулами не найдены<br><small style="margin-top:4px;display:block;">Искали: ' + articles.join(', ') + '</small></div>';
+                return;
+            }
+
+            let msg = '<div class="alert alert-success">✅ Добавлено карточек: ' + addedCount + '</div>';
+            if (notFound.length > 0) {
+                msg = '<div class="alert alert-success">✅ Добавлено карточек: ' + addedCount + '<br><small style="margin-top:4px;display:block;color:#92400e;">Не найдены: ' + notFound.join(', ') + '</small></div>';
+            }
+            alertDiv.innerHTML = msg;
+            
+            document.getElementById('articleInput').value = '';
+            renderProducts();
+            updateSummary();
+        }
+
+        function renderProducts() {
+            const container = document.getElementById('productsContainer');
+            const exportSection = document.getElementById('exportSection');
+            const summaryBox = document.getElementById('summaryBox');
+
+            if (products.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Добавьте товары, используя поиск по артикулам</p></div>';
+                exportSection.style.display = 'none';
+                summaryBox.style.display = 'none';
+                return;
+            }
+
+            exportSection.style.display = 'block';
+            summaryBox.style.display = 'block';
+
+            container.innerHTML = '<div class="products-grid">' + products.map(product => {
+                // Используем instanceId для всех интерактивных кнопок/инпутов
+                const iid = product.instanceId;
+                return '<div class="product-card">' +
+                    '<div class="product-left-column">' +
+                        '<div class="product-image-wrapper">' +
+                            '<img src="' + (product.image || 'https://via.placeholder.com/400x250?text=Нет+изображения') + '" alt="' + product.name + '" class="product-image" onerror="this.src=\'https://via.placeholder.com/400x250?text=Нет+изображения\'">' +
+                            '<button class="btn-danger btn-remove" onclick="removeProduct(\'' + iid + '\')">Удалить</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="product-right-column">' +
+                        '<div class="product-content">' +
+                            '<div class="product-title">' + product.name + '</div>' +
+                            '<div class="product-code">Артикул: ' + product.vendorCode + '</div>' +
+                            
+                            (Object.keys(product.params).length > 0 ? 
+                                '<div class="params-right">' +
+                                    Object.entries(product.params).map(([key, value]) => 
+                                        '<div class="param-item">' +
+                                            '<span class="param-label">' + key + '</span>' +
+                                            '<span class="param-value">' + value + '</span>' +
+                                        '</div>'
+                                    ).join('') +
+                                '</div>' 
+                            : '') +
+
+                            '<div class="price-section">' +
+                                '<div class="price-row">' +
+                                    '<span class="price-label">Цена × Количество:</span>' +
+                                    '<span class="price-value">' + (product.price * product.quantity).toFixed(2) + ' ₽</span>' +
+                                '</div>' +
+                                
+                                // Если есть индивидуальная скидка - показываем только её
+                                (product.individualDiscount > 0 ? 
+                                    '<div class="price-row">' +
+                                        '<span class="price-label">Индивидуальная скидка:</span>' +
+                                        '<span class="price-value" style="color: #ef4444; font-weight: 600;">' + product.individualDiscount.toFixed(1) + '%</span>' +
+                                    '</div>' +
+                                    '<div class="price-row">' +
+                                        '<span class="price-label">После индивидуальной скидки:</span>' +
+                                        '<span class="price-value discounted">' + (product.price * product.quantity * (1 - product.individualDiscount / 100)).toFixed(2) + ' ₽</span>' +
+                                    '</div>'
+                                : 
+                                    // Иначе показываем общую скидку (если она есть)
+                                    (getGlobalDiscount() > 0 ? 
+                                        '<div class="price-row">' +
+                                            '<span class="price-label">Общая скидка:</span>' +
+                                            '<span class="price-value" style="color: #ef4444; font-weight: 600;">' + getGlobalDiscount().toFixed(1) + '%</span>' +
+                                        '</div>' +
+                                        '<div class="price-row">' +
+                                            '<span class="price-label">После общей скидки:</span>' +
+                                            '<span class="price-value discounted">' + (product.price * product.quantity * (1 - getGlobalDiscount() / 100)).toFixed(2) + ' ₽</span>' +
+                                        '</div>' 
+                                    : '')
+                                ) +
+                            '</div>' +
+
+                            '<div class="controls-row">' +
+                                '<div class="control-group">' +
+                                    '<label>Количество</label>' +
+                                    '<input type="number" min="1" value="' + product.quantity + '" onchange="updateQuantity(\'' + iid + '\', this.value)">' +
+                                '</div>' +
+                                '<div class="control-group">' +
+                                    '<label>Скидка (%)</label>' +
+                                    '<input type="number" min="0" max="100" step="0.1" value="' + product.individualDiscount + '" onchange="updateDiscount(\'' + iid + '\', this.value)">' +
+                                '</div>' +
+                            '</div>' +
+
+                            '<div class="final-price">' +
+                                '<span class="final-price-label">Итого:</span>' +
+                                '<div>' +
+                                    (calculateFinalPrice(product) !== product.price * product.quantity ? 
+                                        '<span class="price-old">' + (product.price * product.quantity).toFixed(2) + ' ₽</span>' 
+                                    : '') +
+                                    '<span class="final-price-value">' + calculateFinalPrice(product).toFixed(2) + ' ₽</span>' +
+                                '</div>' +
+                            '</div>' +
+
+                            (product.url ? 
+                                '<a href="' + product.url + '" target="_blank" class="btn-outline product-link" style="display: block; text-decoration: none; text-align: center;">Подробнее на сайте</a>' 
+                            : '') +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('') + '</div>';
+        }
+
+        function getGlobalDiscount() {
+            return parseFloat(document.getElementById('globalDiscount').value) || 0;
+        }
+
+        // Форматирование чисел с разделением по тысячам
+        function formatPrice(price) {
+            return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        }
+
+        function calculateFinalPrice(product) {
+            const globalDiscount = getGlobalDiscount();
+            const originalPrice = product.price * product.quantity;
+            
+            // Если есть индивидуальная скидка, применяем только её (без общей скидки)
+            if (product.individualDiscount > 0) {
+                return originalPrice * (1 - product.individualDiscount / 100);
+            }
+            
+            // Иначе применяем только общую скидку
+            return originalPrice * (1 - globalDiscount / 100);
+        }
+
+        // Поиск и изменение карточки по instanceId
+        function updateQuantity(instanceId, value) {
+            const product = products.find(p => p.instanceId === instanceId);
+            if (product) {
+                product.quantity = parseInt(value) || 1;
+                renderProducts();
+                updateSummary();
+            }
+        }
+
+        function updateDiscount(instanceId, value) {
+            const product = products.find(p => p.instanceId === instanceId);
+            if (product) {
+                product.individualDiscount = parseFloat(value) || 0;
+                renderProducts();
+                updateSummary();
+            }
+        }
+
+        function removeProduct(instanceId) {
+            products = products.filter(p => p.instanceId !== instanceId);
+            renderProducts();
+            updateSummary();
+        }
+
+        function updateAllPrices() {
+            renderProducts();
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const globalDiscount = getGlobalDiscount();
+            const totalOriginal = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
+            const totalAfterGlobal = products.reduce((sum, p) => sum + p.price * p.quantity * (1 - globalDiscount / 100), 0);
+            const totalFinal = products.reduce((sum, p) => sum + calculateFinalPrice(p), 0);
+
+            document.getElementById('totalOriginal').textContent = formatPrice(totalOriginal) + ' ₽';
+            document.getElementById('totalAfterGlobal').textContent = formatPrice(totalAfterGlobal) + ' ₽';
+            document.getElementById('totalFinal').textContent = formatPrice(totalFinal) + ' ₽';
+        }
+
+        function selectManagerTemplate() {
+            const select = document.getElementById('managerTemplate');
+            const nameInput = document.getElementById('managerName');
+            const phoneInput = document.getElementById('managerPhone');
+
+            if (select.value && select.value !== 'custom') {
+                const parts = select.value.split('|');
+                nameInput.value = parts[0];
+                phoneInput.value = parts[1];
+                nameInput.disabled = true;
+                phoneInput.disabled = true;
+            } else {
+                nameInput.disabled = false;
+                phoneInput.disabled = false;
+                if (select.value === 'custom') {
+                    nameInput.value = '';
+                    phoneInput.value = '';
+                }
+            }
+        }
+
+        function openManagerModal() {
+            document.getElementById('managerModal').classList.add('active');
+        }
+
+        function closeManagerModal() {
+            document.getElementById('managerModal').classList.remove('active');
+        }
+
+        function exportToPDF() {
+            const name = document.getElementById('managerName').value;
+            const phone = document.getElementById('managerPhone').value;
+            const org = document.getElementById('managerOrg').value;
+
+            if (!name || !phone) {
+                alert('Пожалуйста, заполните все поля');
+                return;
+            }
+
+            closeManagerModal();
+            
+            // Показываем индикатор загрузки
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'pdfLoading';
+            loadingDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; flex-direction: column;';
+            loadingDiv.innerHTML = '<div style="background: white; padding: 40px; border-radius: 12px; color: #307FF2; text-align: center;"><div style="font-size: 24px; font-weight: 600; margin-bottom: 12px;">⏳ Генерация PDF...</div><div style="font-size: 14px; color: #6b7280;">Это может занять несколько секунд</div></div>';
+            document.body.appendChild(loadingDiv);
+
+            // Небольшая задержка для отображения индикатора
+            setTimeout(() => {
+                generatePDFWithJSPDF(name, phone, org);
+            }, 100);
+        }
+
+        async function generatePDFWithJSPDF(name, phone, org) {
+            try {
+                const { jsPDF } = window.jspdf;
+                const pageWidth = 230;
+                const margin = 15;
+                const contentWidth = pageWidth - 2 * margin;
+
+                // === 1. Создаём красивую шапку ===
+                // Поднято качество рендера шапки умеренно
+                const customHeaderDiv = document.createElement('div');
+                customHeaderDiv.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 1100px; background: white; font-family: Rubik, sans-serif; overflow: hidden;';
+                customHeaderDiv.innerHTML = `
+                    <div style="position: relative; height: 300px; overflow: hidden; background: white;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.5; overflow: hidden;">
+                            <img src="https://static.tildacdn.com/tild3437-3939-4563-b332-343165616237/A4_-_1.png" 
+                                 style="width: 100%; height: 100%; object-fit: cover;" />
+                        </div>
+                        <div style="position: relative; z-index: 1; padding: 44px 56px;">
+                            <div style="font-size: 38px; font-weight: 600; color: #307FF2; margin-bottom: 8px; line-height: 1.2;">
+                                Путешествуй,<br>
+                                исследуй,<br>
+                                открывай!
+                            </div>
+                            <div style="margin-top: 24px;">
+                                <div style="font-size: 50px; font-weight: 700; color: #000000; line-height: 1.1;">
+                                    <span style="font-weight: 700;">vine space</span> <span style="font-weight: 300;">trade</span>
+                                </div>
+                                <div style="font-size: 20px; color: #1f2937; margin-top: 10px; font-weight: 400;">
+                                    все начинается с земли
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(customHeaderDiv);
+
+                const customHeaderCanvas = await html2canvas(customHeaderDiv, {
+                    scale: 1.8,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true
+                });
+
+                // JPEG для шапки вместо PNG — существенно снижает вес
+                const customHeaderImgData = customHeaderCanvas.toDataURL('image/jpeg', 0.74);
+                const customHeaderHeight = contentWidth * (customHeaderCanvas.height / customHeaderCanvas.width);
+                
+                document.body.removeChild(customHeaderDiv);
+
+                // === 2. Создаём временный контейнер для карточек ===
+                const tempContainer = document.createElement('div');
+                tempContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 460px; background: white; padding: 20px;';
+                document.body.appendChild(tempContainer);
+
+                const cardWidth = 460; // Немного увеличено качество рендера карточек
+                const pdfCardWidth = (contentWidth - 5) / 2;
+
+                const cardImages = [];
+                let maxCardHeight = 0;
+
+                for (let i = 0; i < products.length; i++) {
+                    const product = products[i];
+                    
+                    const cardHTML = createProductCardHTML(product);
+                    tempContainer.innerHTML = cardHTML;
+                    tempContainer.style.width = cardWidth + 'px';
+
+                    const canvas = await html2canvas(tempContainer, {
+                        scale: 1.8,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true
+                    });
+
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const pdfCardHeight = pdfCardWidth * (canvas.height / canvas.width);
+                    
+                    cardImages.push({ imgData, height: pdfCardHeight });
+                    maxCardHeight = Math.max(maxCardHeight, pdfCardHeight);
+                }
+
+                document.body.removeChild(tempContainer);
+
+                // Рендерим заголовок с данными менеджера
+                const headerDiv = document.createElement('div');
+                headerDiv.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 700px; background: white; padding: 20px; font-family: Rubik, sans-serif;';
+                headerDiv.innerHTML = `
+                    <div style="font-size: 18px; font-weight: 700; color: #307FF2; margin-bottom: 8px;">
+                        Менеджер: ${name}
+                    </div>
+                    <div style="font-size: 14px; color: #374151; margin-bottom: 4px;">
+                        Телефон: ${phone}
+                    </div>
+                    <div style="font-size: 14px; color: #374151; margin-bottom: 12px;">
+                        Организация: ${org}
+                    </div>
+                    <div style="height: 3px; background: #307FF2; margin-top: 12px;"></div>
+                `;
+                document.body.appendChild(headerDiv);
+
+                const headerCanvas = await html2canvas(headerDiv, {
+                    scale: 1.8,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                const headerImgData = headerCanvas.toDataURL('image/jpeg', 0.74);
+                const headerImgWidth = contentWidth;
+                const headerImgHeight = (headerCanvas.height * headerImgWidth) / headerCanvas.width;
+
+                document.body.removeChild(headerDiv);
+
+                // Вычисляем общую высоту PDF
+                const rowsCount = Math.ceil(products.length / 2);
+                const totalHeight = customHeaderHeight + margin + headerImgHeight + 20 + rowsCount * (maxCardHeight + 5) + margin + 80;
+
+                const pdf = new jsPDF('p', 'mm', [pageWidth, totalHeight]);
+
+                // Добавляем шапку
+                pdf.addImage(customHeaderImgData, 'JPEG', margin, margin, contentWidth, customHeaderHeight);
+
+                // Добавляем блок данных менеджера
+                pdf.addImage(headerImgData, 'JPEG', margin, margin + customHeaderHeight + 10, headerImgWidth, headerImgHeight);
+
+                // Добавляем карточки
+                let yPosition = margin + customHeaderHeight + headerImgHeight + 20;
+
+                for (let i = 0; i < cardImages.length; i++) {
+                    const col = i % 2;
+                    const xPosition = margin + col * (pdfCardWidth + 5);
+                    
+                    pdf.addImage(cardImages[i].imgData, 'JPEG', xPosition, yPosition, pdfCardWidth, cardImages[i].height);
+
+                    // Добавляем кликабельную ссылку поверх кнопки "Подробнее"
+                    const product = products[i];
+                    if (product.url) {
+                        const linkY = yPosition + cardImages[i].height - 10;
+                        const linkHeight = 7;
+                        const linkWidth = pdfCardWidth - 4;
+                        const linkX = xPosition + 2;
+                        
+                        pdf.link(linkX, linkY, linkWidth, linkHeight, { url: product.url });
+                    }
+
+                    // Переход на следующую строку после каждых 2 карточек
+                    if (col === 1) {
+                        yPosition += maxCardHeight + 5;
+                    }
+                }
+
+                // Если последняя карточка в первой колонке
+                if (cardImages.length % 2 === 1) {
+                    yPosition += maxCardHeight + 5;
+                }
+
+                // === Добавляем футер с суммами ===
+                let totalWithoutDiscount = 0;
+                let totalWithDiscount = 0;
+                products.forEach(product => {
+                    totalWithoutDiscount += product.price * product.quantity;
+                    totalWithDiscount += calculateFinalPrice(product);
+                });
+
+                const footerDiv = document.createElement('div');
+                footerDiv.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 950px; background: white; padding: 30px 40px; font-family: Rubik, sans-serif;';
+                footerDiv.innerHTML = `
+                    <div style="background: #f9fafb; padding: 24px; border-radius: 8px; border: 2px solid #307FF2;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                            <span style="font-size: 18px; font-weight: 500; color: #374151;">Сумма без скидок:</span>
+                            <span style="font-size: 20px; font-weight: 700; color: #1f2937;">${totalWithoutDiscount.toLocaleString('ru-RU')} ₽</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding-bottom: 20px; border-bottom: 2px solid #307FF2;">
+                            <span style="font-size: 18px; font-weight: 500; color: #374151;">Сумма после скидок:</span>
+                            <span style="font-size: 22px; font-weight: 700; color: #307FF2;">${totalWithDiscount.toLocaleString('ru-RU')} ₽</span>
+                        </div>
+                        <div style="margin-top: 20px; font-size: 11px; color: #6b7280; line-height: 1.6; text-align: center;">
+                            Цены и характеристики товаров носят ознакомительный характер, не являются публичной офертой,<br>
+                            определяемой положениями ст. 437 ГК РФ
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(footerDiv);
+
+                const footerCanvas = await html2canvas(footerDiv, {
+                    scale: 1.8,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                const footerImgData = footerCanvas.toDataURL('image/jpeg', 0.74);
+                const footerImgWidth = contentWidth;
+                const footerImgHeight = (footerCanvas.height * footerImgWidth) / footerCanvas.width;
+
+                document.body.removeChild(footerDiv);
+
+                pdf.addImage(footerImgData, 'JPEG', margin, yPosition + 10, footerImgWidth, footerImgHeight);
+
+                const fileName = 'Каталог_' + name.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
+                pdf.save(fileName);
+
+                const loadingDiv = document.getElementById('pdfLoading');
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+
+                alert('✅ PDF успешно создан и загружен!');
+            } catch (error) {
+                console.error('Ошибка генерации PDF:', error);
+                const loadingDiv = document.getElementById('pdfLoading');
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                alert('❌ Ошибка при создании PDF: ' + error.message);
+            }
+        }
+
+        // Функция для создания HTML карточки товара
+        function createProductCardHTML(product) {
+            const globalDiscount = getGlobalDiscount();
+            const originalPrice = product.price * product.quantity;
+            const afterGlobalPrice = originalPrice * (1 - globalDiscount / 100);
+            const finalPrice = calculateFinalPrice(product);
+            const hasAnyDiscount = finalPrice !== originalPrice;
+            
+            return `
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; display: flex; font-family: 'Rubik', sans-serif; min-height: 380px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="width: 35%; background: #f9fafb; border-right: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 16px;">
+                        <img src="${product.image || 'https://via.placeholder.com/400x250?text=Нет+изображения'}" 
+                             style="width: 100%; height: auto; max-height: 300px; object-fit: contain;" 
+                             onerror="this.src='https://via.placeholder.com/400x250?text=Нет+изображения'">
+                    </div>
+                    <div style="width: 65%; padding: 20px; display: flex; flex-direction: column;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px; line-height: 1.4; color: #1f2937;">${product.name}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-bottom: 14px; line-height: 1.4;">Артикул: ${product.vendorCode}</div>
+                            
+                            ${Object.keys(product.params).length > 0 ? 
+                                '<div style="margin-bottom: 14px;">' +
+                                    Object.entries(product.params).slice(0, 8).map(([key, value]) => 
+                                        `<div style="margin-bottom: 6px; font-size: 11px; display: flex; padding: 6px 0; border-bottom: 1px solid #f3f4f6; line-height: 1.5;">
+                                            <span style="font-weight: 500; color: #374151; width: 45%; flex-shrink: 0; padding-right: 8px;">${key}</span>
+                                            <span style="color: #6b7280; width: 55%; word-wrap: break-word;">${value}</span>
+                                        </div>`
+                                    ).join('') +
+                                '</div>' 
+                            : ''}
+
+                            <div style="margin-bottom: 14px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; line-height: 1.5;">
+                                    <span style="font-size: 11px; color: #6b7280;">Цена × Количество:</span>
+                                    <span style="font-size: 12px; font-weight: 500;">${formatPrice(product.price)} ₽ × ${product.quantity} шт</span>
+                                </div>
+                                ${product.individualDiscount > 0 ? 
+                                    // Если есть индивидуальная скидка - показываем только её
+                                    `<div style="display: flex; justify-content: space-between; margin-bottom: 6px; line-height: 1.5;">
+                                        <span style="font-size: 11px; color: #6b7280;">Индивидуальная скидка:</span>
+                                        <span style="font-size: 12px; font-weight: 500; color: #ef4444;">${product.individualDiscount}%</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px; line-height: 1.5;">
+                                        <span style="font-size: 11px; color: #6b7280;">После индивидуальной скидки:</span>
+                                        <span style="font-size: 12px; font-weight: 500; color: #307FF2;">${formatPrice(originalPrice * (1 - product.individualDiscount / 100))} ₽</span>
+                                    </div>` 
+                                : 
+                                    // Иначе показываем общую скидку (если она есть)
+                                    (globalDiscount > 0 ? 
+                                        `<div style="display: flex; justify-content: space-between; margin-bottom: 6px; line-height: 1.5;">
+                                            <span style="font-size: 11px; color: #6b7280;">Общая скидка:</span>
+                                            <span style="font-size: 12px; font-weight: 500; color: #ef4444;">${globalDiscount}%</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; line-height: 1.5;">
+                                            <span style="font-size: 11px; color: #6b7280;">После общей скидки:</span>
+                                            <span style="font-size: 12px; font-weight: 500; color: #307FF2;">${formatPrice(afterGlobalPrice)} ₽</span>
+                                        </div>` 
+                                    : '')
+                                }
+                            </div>
+                        </div>
+
+                        <div style="padding-top: 14px; border-top: 2px solid #e5e7eb; margin-top: auto;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="font-weight: 600; font-size: 13px; line-height: 1.5;">Итого:</span>
+                                <div style="text-align: right;">
+                                    ${hasAnyDiscount ? 
+                                        `<div style="text-decoration: line-through; color: #9ca3af; font-size: 11px; margin-bottom: 3px; line-height: 1.5;">
+                                            ${formatPrice(originalPrice)} ₽
+                                        </div>` 
+                                    : ''}
+                                    <div style="font-size: 20px; font-weight: 700; color: #307FF2; line-height: 1.3;">
+                                        ${formatPrice(finalPrice)} ₽
+                                    </div>
+                                </div>
+                            </div>
+                            ${product.url ? 
+                                `<a href="${product.url}" target="_blank" style="display: block; padding: 10px 16px; background: white; color: #307FF2; border: 2px solid #307FF2; border-radius: 8px; text-decoration: none; text-align: center; font-size: 12px; font-weight: 500; transition: background 0.2s;">
+                                    Подробнее на сайте →
+                                </a>` 
+                            : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.getElementById('managerModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeManagerModal();
+            }
+        });
+
+        function resetAll() {
+            products = [];
+            _instanceCounter = 0;
+            renderProducts();
+            updateSummary();
+            document.getElementById('articleInput').value = '';
+            document.getElementById('globalDiscount').value = '0';
+        }
+    </script>
+</body>
+</html>
