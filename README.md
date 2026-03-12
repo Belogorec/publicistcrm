@@ -22,10 +22,12 @@
 ## Локальный запуск
 
 ```bash
-cd projectpress/projectpress_crm
+git clone https://github.com/Belogorec/publicistcrm.git
+cd publicistcrm
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env   # вставьте свои ключи
 python init_db.py
 python flask_app.py
 ```
@@ -70,21 +72,41 @@ curl -s http://localhost:5002/health
 }
 ```
 
-## Railway деплой как второй сервис
+## Railway деплой
 
-1. В Railway проекте `projectpress` нажмите `New Service` -> `GitHub Repo`.
-2. Выберите репозиторий CRM (когда заполните `Belogorec/publicistcrm`).
-3. Для сервиса задайте root directory: `projectpress_crm` (если монорепо) или `/` (если CRM отдельным репо).
-4. Добавьте env:
-   - `CRM_INGEST_API_KEY=<секрет>`
-   - `CRM_DB_PATH=/data/projectpress_crm.db`
-5. Добавьте volume и смонтируйте в `/data`.
-6. Deploy.
-7. Вкладка `Settings -> Networking -> Domains`:
-   - Добавьте домен вида `crm.<ваш-домен-проекта>`
-   - Пропишите DNS CNAME по инструкции Railway.
+Репозиторий https://github.com/Belogorec/publicistcrm
 
-После публикации домена укажите в боте:
+### 1. Создание сервиса
 
-- `CRM_API_URL=https://crm.<ваш-домен-проекта>/api/events`
-- `CRM_API_KEY=<тот же CRM_INGEST_API_KEY>`
+1. В Railway откройте проект `projectpress`.
+2. Нажмите **New Service → GitHub Repo**.
+3. Выберите `Belogorec/publicistcrm`.
+4. Root directory: оставить пустым (корень репозитория).
+5. Start command определяется Procfile автоматически.
+
+### 2. Volume для БД
+
+1. В сервисе CRM откройте вкладку **Volumes**.
+2. Создайте volume, mount path: `/data`.
+
+### 3. Environment variables (в Railway Variables)
+
+| Имя                  | Значение                                    |
+|----------------------|---------------------------------------------|
+| `CRM_INGEST_API_KEY` | секретная строка, которую выставили в боте  |
+| `CRM_DB_PATH`        | `/data/projectpress_crm.db`                 |
+
+### 4. Домен
+
+1. Вкладка **Settings → Networking → Domains**.
+2. Добавьте `crm.<ваш-домен>` → Railway CNAME.
+
+### 5. Переменные в боте Projectpress
+
+Откройте сервис `projectpress` в Railway → Variables:
+
+| Имя                | Значение                                              |
+|--------------------|-------------------------------------------------------|
+| `CRM_API_URL`      | `https://crm.<ваш-домен>/api/events`                  |
+| `CRM_API_KEY`      | тот же `CRM_INGEST_API_KEY` из сервиса CRM            |
+| `CRM_SYNC_TIMEOUT` | `8`                                                   |
