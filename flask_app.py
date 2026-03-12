@@ -1,8 +1,9 @@
 import traceback
 
-from flask import Flask, abort, redirect, render_template, request, url_for
+import requests
+from flask import Flask, Response, abort, redirect, render_template, request, url_for
 
-from config import CRM_INGEST_API_KEY
+from config import BOT_TOKEN, CRM_INGEST_API_KEY
 from db import STATUS_GROUPS, connect, run_migrations
 from service import add_crm_comment, change_status, get_client_telegram_id, ingest_event
 from telegram_notify import send_to_client, status_change_text
@@ -338,6 +339,57 @@ def notify_client(application_id: int):
         conn.close()
 
     return redirect(url_for("application_detail", application_id=application_id, msg="notified"))
+
+
+@app.route("/attachments/<int:attachment_id>/download", methods=["GET"])
+def download_attachment(attachment_id: int):
+    if not BOT_TOKEN:
+        abort(503)
+
+    conn = connect()
+    try:
+        row = conn.execute(
+            """
+            SELECT source_file_id, filename, mime_type
+            FROM attachments
+            WHERE id = ?
+            """,
+            (attachment_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row or not row["source_file_id"]:
+        abort(404)
+
+    tg_file_id = str(row["source_file_id"])
+    filename = row["filename"] or f"attachment_{attachment_id}"
+
+    try:
+        meta_resp = requests.get(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
+            params={"file_id": tg_file_id},
+            timeout=10,
+        )
+        meta = meta_resp.json() if meta_resp.ok else {}
+        file_path = ((meta.get("result") or {}).get("file_path") or "").strip()
+        if not file_path:
+            abort(404)
+
+        file_resp = requests.get(
+            f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}",
+            timeout=20,
+        )
+        if not file_resp.ok:
+            abort(502)
+
+        content_type = row["mime_type"] or file_resp.headers.get("Content-Type") or "application/octet-stream"
+        resp = Response(file_resp.content, mimetype=content_type)
+        resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return resp
+    except Exception:
+        traceback.print_exc()
+        abort(502)
 
 
 @app.route("/api/events", methods=["POST"])

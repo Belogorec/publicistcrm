@@ -186,12 +186,14 @@
         {% for row in group.list %}
         <div class="event">
           <div class="meta">{{ row.created_at }}</div>
-          {% if row.storage_url %}
+          {% if row.storage_url and row.storage_url.startswith('http') %}
           <a class="file-link" href="{{ row.storage_url }}" target="_blank" rel="noopener noreferrer" download>
             {{ row.filename or 'Файл' }}
           </a>
           {% else %}
-          <div><strong>{{ row.filename or 'Файл' }}</strong></div>
+          <a class="file-link" href="{{ url_for('download_attachment', attachment_id=row.id) }}" target="_blank" rel="noopener noreferrer" download>
+            {{ row.filename or 'Файл' }}
+          </a>
           {% endif %}
         </div>
         {% endfor %}
