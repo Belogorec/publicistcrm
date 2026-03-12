@@ -46,7 +46,7 @@
       <div class="step-title"><span class="step-number">2</span>Отправьте боту</div>
       <div class="step-content">
         <div>/auth {{ code }}</div>
-        {% if bot_username %}<div style="margin-top:8px;"><a href="https://t.me/{{ bot_username }}" target="_blank">Открыть бота</a></div>{% endif %}
+        {% if bot_username %}<div style="margin-top:8px;"><a href="https://t.me/{{ bot_username }}?start=auth_{{ code }}" target="_blank">Открыть бота с кодом</a></div>{% endif %}
       </div>
     </div>
     <div class="login-step">
