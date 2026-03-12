@@ -35,6 +35,17 @@ body {
   font-weight: 700;
   letter-spacing: 0.2px;
   margin-bottom: 18px;
+  line-height: 1.2;
+  font-size: 15px;
+}
+
+.brand-sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.5;
+  margin-top: 3px;
+  letter-spacing: 0.4px;
 }
 
 .menu-link {
@@ -259,17 +270,88 @@ h2 {
   }
 
   .side {
-    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+  }
+
+  .brand {
+    margin-bottom: 0;
+  }
+
+  .menu {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .menu-link {
+    padding: 7px 12px;
+  }
+
+  .main {
+    padding: 16px;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filters {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid,
+  .grid.two {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .side {
+    padding: 10px 14px;
+    gap: 12px;
+  }
+
+  .brand-sub {
+    display: none;
   }
 
   .main {
     padding: 12px;
   }
 
-  .cards,
-  .filters,
-  .grid,
-  .grid.two {
+  .top h1 {
+    font-size: 20px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .metric-card strong {
+    font-size: 20px;
+  }
+
+  .filters {
     grid-template-columns: 1fr;
+  }
+
+  input,
+  select,
+  button,
+  .ghost {
+    font-size: 16px;
+  }
+
+  table {
+    min-width: 640px;
+  }
+
+  .panel {
+    padding: 12px;
   }
 }
