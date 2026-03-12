@@ -2,6 +2,18 @@
 
 Отдельный CRM-сервис для обработки событий из Telegram-бота `projectpress`.
 
+## Важно
+
+- Production CRM на Railway разворачивается именно из репозитория `Belogorec/publicistcrm`.
+- Папка `projectpress/projectpress_crm` в рабочем пространстве не влияет на текущий Railway deploy этого CRM.
+- Если нужно менять поведение production CRM, вносить изменения нужно в этот проект.
+
+## Telegram auth
+
+- Корень `/` закрыт авторизацией и без активной сессии ведет на `/login`.
+- Вход подтверждается через Telegram-бота по одноразовому коду.
+- Для работы нужны переменные `BOT_TOKEN`, `ADMIN_IDS`, `SESSION_SECRET_KEY`, `AUTH_TOKEN_LIFETIME`, `CRM_INGEST_API_KEY`, `CRM_DB_PATH`.
+
 ## Что уже реализовано
 
 - API приёма событий из бота: `POST /api/events`
