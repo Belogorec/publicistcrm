@@ -27,6 +27,24 @@ def create_auth_code() -> str:
         conn.close()
 
 
+def get_auth_code_status(code: str) -> str:
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT confirmed, expires_at FROM auth_codes WHERE code = ?",
+            (code,),
+        ).fetchone()
+        if not row:
+            return "missing"
+        if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+            return "expired"
+        if row["confirmed"]:
+            return "confirmed"
+        return "pending"
+    finally:
+        conn.close()
+
+
 def confirm_auth_code(code: str, telegram_id: int) -> bool:
     conn = connect()
     try:
@@ -52,7 +70,7 @@ def validate_and_create_session(code: str, admin_ids) -> Optional[str]:
     conn = connect()
     try:
         row = conn.execute(
-            "SELECT telegram_id, expires_at FROM auth_codes WHERE code = ? AND confirmed = 1",
+            "SELECT id, telegram_id, expires_at FROM auth_codes WHERE code = ? AND confirmed = 1",
             (code,),
         ).fetchone()
         if not row:
@@ -78,6 +96,7 @@ def validate_and_create_session(code: str, admin_ids) -> Optional[str]:
             """,
             (session_id, str(telegram_id), username, full_name, expires_at),
         )
+        conn.execute("DELETE FROM auth_codes WHERE id = ?", (row["id"],))
         conn.commit()
         return session_id
     finally:

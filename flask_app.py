@@ -7,7 +7,7 @@ from typing import Optional
 import requests
 from flask import Flask, Response, abort, redirect, render_template, request, url_for, make_response
 
-from auth_service import create_auth_code, confirm_auth_code, get_session_user, invalidate_session, validate_and_create_session
+from auth_service import create_auth_code, confirm_auth_code, get_auth_code_status, get_session_user, invalidate_session, validate_and_create_session
 from config import ADMIN_IDS, BOT_TOKEN, CRM_INGEST_API_KEY, SESSION_SECRET_KEY
 from db import STATUS_GROUPS, connect, run_migrations
 from service import add_crm_comment, change_status, get_client_telegram_id, ingest_event
@@ -89,14 +89,13 @@ def login():
         except Exception:
             pass
 
-    code = request.args.get("code", "").strip()
+    code = request.args.get("code", "").strip() or create_auth_code()
     error = (request.args.get("error") or "").strip() or None
     return render_template(
         "login.html",
         code=code,
         bot_username=bot_username,
         error=error,
-        show_request_code=(not code),
     )
 
 
@@ -117,6 +116,37 @@ def confirm_auth_code_route():
         return redirect(url_for("login", code=code, error="Код не подтвержден ботом или истек. Попробуйте еще раз."))
 
     resp = make_response(redirect(url_for("applications_list")))
+    resp.set_cookie(
+        "auth_session",
+        session_id,
+        max_age=86400,
+        secure=True,
+        httponly=True,
+        samesite="Strict",
+    )
+    return resp
+
+
+@app.route("/auth-status", methods=["GET"])
+def auth_status() -> tuple[dict, int] | Response:
+    if _is_authenticated():
+        return {"ok": True, "status": "authenticated", "redirect": url_for("applications_list")}, 200
+
+    code = (request.args.get("code") or "").strip()
+    if not code:
+        return {"ok": False, "status": "missing_code"}, 400
+
+    status = get_auth_code_status(code)
+    if status == "pending":
+        return {"ok": True, "status": "pending"}, 200
+    if status in ("missing", "expired"):
+        return {"ok": False, "status": status}, 404 if status == "missing" else 410
+
+    session_id = validate_and_create_session(code, ADMIN_IDS)
+    if not session_id:
+        return {"ok": False, "status": "denied"}, 403
+
+    resp = make_response({"ok": True, "status": "authenticated", "redirect": url_for("applications_list")}, 200)
     resp.set_cookie(
         "auth_session",
         session_id,
