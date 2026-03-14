@@ -69,8 +69,19 @@ applyTo: "luchbarbot/**"
 
 ## CRM Sync And Backfill
 - Bot-to-CRM live sync goes through `crm_sync.py` -> CRM endpoint `/api/events`.
+- All booking creation paths must emit CRM upsert events:
+  - `tg_handlers.py` miniapp message flow,
+  - `tilda_api.py` webhook flow,
+  - `flask_app.py` endpoint `/api/booking`.
 - `backfill_crm.py` resends booking events only; it does not import historical `guest_visits` CSV datasets by itself.
 - If a large legacy guest base must appear in CRM, import it directly into `LUCH_crm` DB (its own volume), not only into `BOT_LUCH`.
+- Do not silently swallow sync failures:
+  - keep retry logic in `crm_sync.py`,
+  - write explicit `CRM_SYNC_FAIL` booking events for diagnostics.
+
+## CRM UI Refresh
+- CRM list/dashboard pages support auto-refresh via polling `GET /api/crm/pulse`.
+- When troubleshooting "status refresh works but new booking does not", first verify that new booking events are delivered into CRM DB (not only updated inside BOT_LUCH).
 
 ## Migration Safety
 - Before one-off data imports on Railway, create a DB backup in the same volume.
