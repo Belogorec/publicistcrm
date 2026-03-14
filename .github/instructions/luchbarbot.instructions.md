@@ -13,6 +13,10 @@ applyTo: "luchbarbot/**"
   - `BOT_LUCH` keeps bot operational data in `/data/luchbar.db`.
   - `LUCH_crm` keeps CRM data in its own `/data/luchbar.db`.
   - These files are not shared automatically; writing to one service DB does not change the other.
+- Bot and CRM are maintained in different GitHub repositories:
+  - bot repo: `Belogorec/BOT_LUCH`
+  - CRM repo: `Belogorec/LUCH_crm`
+  - keep temporary migration artifacts (CSV/import scripts) out of `main` in both repos.
 - Keep module boundaries intact:
   - `tg_handlers.py` handles Telegram webhook parsing, callback routing, admin checks, and bot replies.
   - `tilda_api.py` and `/api/booking` flows normalize external booking payloads.
