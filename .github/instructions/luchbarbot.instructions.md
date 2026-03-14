@@ -9,6 +9,10 @@ applyTo: "luchbarbot/**"
 - The app is a Flask webhook service for bookings, Telegram bot interactions, and admin analytics.
 - Main entrypoint: `luchbarbot/flask_app.py`.
 - Importing the app runs `bootstrap_schema()`, so schema migrations happen at startup.
+- Production uses two Railway services with separate SQLite volumes:
+  - `BOT_LUCH` keeps bot operational data in `/data/luchbar.db`.
+  - `LUCH_crm` keeps CRM data in its own `/data/luchbar.db`.
+  - These files are not shared automatically; writing to one service DB does not change the other.
 - Keep module boundaries intact:
   - `tg_handlers.py` handles Telegram webhook parsing, callback routing, admin checks, and bot replies.
   - `tilda_api.py` and `/api/booking` flows normalize external booking payloads.
@@ -53,8 +57,23 @@ applyTo: "luchbarbot/**"
 - Reuse the existing normalization helpers for names, times, and especially phones.
 - Russian phone normalization to E.164 is already implemented and must not be duplicated inconsistently.
 - Preserve mixed Russian and English field-name handling in booking imports and Tilda payloads.
+- Contact-sharing flow is authoritative for guest naming:
+  - when Telegram contact is shared and phone matches an existing guest,
+  - update `guests.name_last` with Telegram contact name.
 - Be careful when changing booking confirmation logic: downstream visit creation depends on both `phone_e164` and `reservation_dt` being present.
 - Guest segmentation and admin analytics use project-specific thresholds and timezone-offset behavior. Do not change them without an explicit requirement.
+
+## CRM Sync And Backfill
+- Bot-to-CRM live sync goes through `crm_sync.py` -> CRM endpoint `/api/events`.
+- `backfill_crm.py` resends booking events only; it does not import historical `guest_visits` CSV datasets by itself.
+- If a large legacy guest base must appear in CRM, import it directly into `LUCH_crm` DB (its own volume), not only into `BOT_LUCH`.
+
+## Migration Safety
+- Before one-off data imports on Railway, create a DB backup in the same volume.
+- Treat guest CSV files as sensitive contact data:
+  - keep them git-ignored,
+  - use temporary branches/commits only when strictly necessary,
+  - remove temporary artifacts from `main` immediately after import.
 
 ## Telegram Rules
 - Telegram messages use HTML formatting.
