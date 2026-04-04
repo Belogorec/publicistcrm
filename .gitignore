@@ -1,0 +1,10 @@
+# Local sibling repositories that are not part of Belogorec/publicistcrm
+luchbarbot/
+luchbarbot-relay/
+luchbarbot — копия/
+projectpress/
+publicistcrm/
+
+# Local artifacts
+backups/
+.DS_Store
