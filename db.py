@@ -200,19 +200,8 @@ def run_migrations(conn: sqlite3.Connection) -> None:
             created_at      TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
-        CREATE TABLE IF NOT EXISTS auth_codes (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            code            TEXT NOT NULL UNIQUE,
-            telegram_id     TEXT,
-            confirmed       INTEGER NOT NULL DEFAULT 0,
-            expires_at      TEXT NOT NULL,
-            created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-
         CREATE INDEX IF NOT EXISTS idx_auth_sessions_session_id ON auth_sessions(session_id);
         CREATE INDEX IF NOT EXISTS idx_auth_sessions_telegram_id ON auth_sessions(telegram_id);
-        CREATE INDEX IF NOT EXISTS idx_auth_codes_code ON auth_codes(code);
-        CREATE INDEX IF NOT EXISTS idx_auth_codes_telegram_id ON auth_codes(telegram_id);
         """
     )
     conn.commit()

@@ -13,88 +13,33 @@
     .login-container { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 40px; max-width: 420px; width: 100%; }
     .login-title { font-size: 24px; font-weight: 600; margin-bottom: 8px; text-align: center; color: #222; }
     .login-subtitle { font-size: 14px; color: #666; text-align: center; margin-bottom: 24px; line-height: 1.5; }
+    .field { margin-bottom: 14px; }
+    .label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #555; }
+    .input { display: block; width: 100%; padding: 12px 14px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+    .input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,.12); }
     .btn { display: block; width: 100%; padding: 14px 16px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; box-sizing: border-box; }
     .btn:hover { background: #0056b3; }
-    .btn[aria-disabled="true"] { background: #9aa6b2; cursor: not-allowed; pointer-events: none; }
-    .status { margin-top: 16px; font-size: 13px; color: #666; text-align: center; min-height: 20px; }
-    .status.pending { color: #0b57d0; }
-    .status.error { color: #c00; }
     .error { background: #fee; color: #c00; padding: 10px; border-radius: 4px; font-size: 12px; margin-bottom: 16px; }
+    .hint { margin-top: 14px; font-size: 12px; color: #777; text-align: center; }
   </style>
 </head>
 <body>
   <div class="login-container">
     <div class="login-title">PUBLICIST — CRM</div>
-    <div class="login-subtitle">Откройте Telegram, подтвердите вход в боте и страница автоматически откроет CRM.</div>
+    <div class="login-subtitle">Войдите по логину и паролю, чтобы открыть CRM.</div>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
-    {% if bot_username %}
-    <a id="tg-login-button" class="btn" href="https://t.me/{{ bot_username }}?start=auth_{{ code }}" target="_blank" rel="noopener">Авторизоваться через Telegram</a>
-    <div id="auth-status" class="status">Ожидание подтверждения в Telegram</div>
-    {% else %}
-    <a class="btn" aria-disabled="true">Бот недоступен</a>
-    <div class="status error">Не удалось определить username бота. Проверьте BOT_TOKEN в Railway.</div>
-    {% endif %}
+    <form method="post" action="{{ url_for('login') }}">
+      <div class="field">
+        <label class="label" for="login">Логин</label>
+        <input id="login" class="input" type="text" name="login" autocomplete="username" value="{{ login_value or 'admin' }}" required>
+      </div>
+      <div class="field">
+        <label class="label" for="password">Пароль</label>
+        <input id="password" class="input" type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn" type="submit">Войти в CRM</button>
+    </form>
+    <div class="hint">Текущий вход настроен на обычную пару логин/пароль без Telegram.</div>
   </div>
-  {% if bot_username %}
-  <script>
-    (function () {
-      const code = {{ code|tojson }};
-      const statusNode = document.getElementById("auth-status");
-      const buttonNode = document.getElementById("tg-login-button");
-      let polling = false;
-
-      function setStatus(text, className) {
-        statusNode.textContent = text;
-        statusNode.className = "status" + (className ? " " + className : "");
-      }
-
-      async function pollAuthStatus() {
-        if (polling) {
-          return;
-        }
-        polling = true;
-        try {
-          const response = await fetch("/auth-status?code=" + encodeURIComponent(code), {
-            method: "GET",
-            credentials: "same-origin",
-            cache: "no-store"
-          });
-          const payload = await response.json().catch(() => ({}));
-
-          if (response.ok && payload.status === "authenticated") {
-            window.location.replace(payload.redirect || "/");
-            return;
-          }
-
-          if (payload.status === "pending") {
-            setStatus("Подтвердите вход в Telegram. После подтверждения CRM откроется автоматически.", "pending");
-            return;
-          }
-
-          if (payload.status === "expired" || payload.status === "missing") {
-            window.location.replace("/login?error=" + encodeURIComponent("Код входа истек. Повторите попытку."));
-            return;
-          }
-
-          if (payload.status === "denied") {
-            setStatus("Доступ запрещен: ваш Telegram не входит в ADMIN_IDS.", "error");
-            return;
-          }
-        } catch (error) {
-          setStatus("Не удалось связаться с CRM. Повторная проверка продолжается.", "error");
-        } finally {
-          polling = false;
-        }
-      }
-
-      buttonNode.addEventListener("click", function () {
-        setStatus("Ожидаем подтверждение в Telegram...", "pending");
-      });
-
-      pollAuthStatus();
-      window.setInterval(pollAuthStatus, 1500);
-    })();
-  </script>
-  {% endif %}
 </body>
 </html>
