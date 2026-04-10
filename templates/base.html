@@ -24,7 +24,7 @@
       </nav>
       {% if session_user %}
       <div class="user-info">
-        <div class="user-name">{{ session_user.full_name or session_user.username }}</div>
+        <div class="user-name">{{ session_user.full_name or session_user.username or session_user.telegram_id }}</div>
         <a href="{{ url_for('logout') }}" class="logout-btn">Выход</a>
       </div>
       {% endif %}

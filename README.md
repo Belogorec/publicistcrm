@@ -20,14 +20,11 @@
 - Root directory в Railway: корень репозитория.
 - База обычно хранится во внешнем volume, например `/data/projectpress_crm.db`.
 
-## CRM auth
+## Telegram auth
 
 - Корень `/` закрыт авторизацией и без активной сессии ведет на `/login`.
-- Вход выполнен по обычной паре логин/пароль.
-- Текущие дефолтные данные входа: `admin / 74952870022`.
-- При необходимости можно переопределить через `CRM_LOGIN`, `CRM_PASSWORD`, `AUTH_SESSION_LIFETIME`.
-- Нужные переменные: `SESSION_SECRET_KEY`, `CRM_INGEST_API_KEY`, `CRM_DB_PATH`.
-- Старый Telegram login flow вынесен в `archive/telegram_auth/`.
+- Вход подтверждается через Telegram-бота по одноразовому коду.
+- Нужные переменные: `BOT_TOKEN`, `ADMIN_IDS`, `SESSION_SECRET_KEY`, `AUTH_TOKEN_LIFETIME`, `CRM_INGEST_API_KEY`, `CRM_DB_PATH`.
 
 ## Что уже реализовано
 

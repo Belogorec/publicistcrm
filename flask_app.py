@@ -7,8 +7,8 @@ from typing import Optional
 import requests
 from flask import Flask, Response, abort, redirect, render_template, request, url_for, make_response
 
-from auth_service import create_session, get_session_user, invalidate_session
-from config import AUTH_SESSION_LIFETIME, BOT_TOKEN, CRM_INGEST_API_KEY, SESSION_SECRET_KEY
+from auth_service import create_auth_code, confirm_auth_code, get_auth_code_status, get_session_user, invalidate_session, validate_and_create_session
+from config import ADMIN_IDS, BOT_TOKEN, CRM_INGEST_API_KEY, SESSION_SECRET_KEY
 from db import STATUS_GROUPS, connect, run_migrations
 from service import add_crm_comment, change_status, get_client_telegram_id, ingest_event
 from telegram_notify import send_to_client, status_change_text
@@ -39,18 +39,6 @@ def _safe_int(value: str):
 
 def _get_session_id() -> Optional[str]:
     return request.cookies.get("auth_session")
-
-
-def _set_auth_cookie(resp: Response, session_id: str) -> Response:
-    resp.set_cookie(
-        "auth_session",
-        session_id,
-        max_age=AUTH_SESSION_LIFETIME,
-        secure=request.is_secure or not app.debug,
-        httponly=True,
-        samesite="Strict",
-    )
-    return resp
 
 
 def _is_authenticated() -> bool:
@@ -84,23 +72,90 @@ def health() -> tuple[dict, int]:
     return {"status": "ok"}, 200
 
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["GET"])
 def login():
     if _is_authenticated():
         return redirect(url_for("applications_list"))
 
-    error = None
-    login_value = (request.form.get("login") or request.args.get("login") or "admin").strip()
+    bot_username = ""
+    if BOT_TOKEN:
+        try:
+            resp = requests.get(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/getMe",
+                timeout=5,
+            )
+            if resp.ok:
+                bot_username = resp.json().get("result", {}).get("username", "")
+        except Exception:
+            pass
 
-    if request.method == "POST":
-        password = request.form.get("password") or ""
-        session_id = create_session(login_value, password)
-        if session_id:
-            return _set_auth_cookie(make_response(redirect(url_for("applications_list"))), session_id)
-        error = "Неверный логин или пароль."
+    code = request.args.get("code", "").strip() or create_auth_code()
+    error = (request.args.get("error") or "").strip() or None
+    return render_template(
+        "login.html",
+        code=code,
+        bot_username=bot_username,
+        error=error,
+    )
 
-    error = error or (request.args.get("error") or "").strip() or None
-    return render_template("login.html", error=error, login_value=login_value)
+
+@app.route("/request-auth-code", methods=["POST"])
+def request_auth_code():
+    code = create_auth_code()
+    return redirect(url_for("login", code=code))
+
+
+@app.route("/confirm-auth-code", methods=["POST"])
+def confirm_auth_code_route():
+    code = (request.form.get("code") or "").strip()
+    if not code:
+        return redirect(url_for("login", error="Код не указан"))
+
+    session_id = validate_and_create_session(code, ADMIN_IDS)
+    if not session_id:
+        return redirect(url_for("login", code=code, error="Код не подтвержден ботом или истек. Попробуйте еще раз."))
+
+    resp = make_response(redirect(url_for("applications_list")))
+    resp.set_cookie(
+        "auth_session",
+        session_id,
+        max_age=86400,
+        secure=True,
+        httponly=True,
+        samesite="Strict",
+    )
+    return resp
+
+
+@app.route("/auth-status", methods=["GET"])
+def auth_status() -> tuple[dict, int] | Response:
+    if _is_authenticated():
+        return {"ok": True, "status": "authenticated", "redirect": url_for("applications_list")}, 200
+
+    code = (request.args.get("code") or "").strip()
+    if not code:
+        return {"ok": False, "status": "missing_code"}, 400
+
+    status = get_auth_code_status(code)
+    if status == "pending":
+        return {"ok": True, "status": "pending"}, 200
+    if status in ("missing", "expired"):
+        return {"ok": False, "status": status}, 404 if status == "missing" else 410
+
+    session_id = validate_and_create_session(code, ADMIN_IDS)
+    if not session_id:
+        return {"ok": False, "status": "denied"}, 403
+
+    resp = make_response({"ok": True, "status": "authenticated", "redirect": url_for("applications_list")}, 200)
+    resp.set_cookie(
+        "auth_session",
+        session_id,
+        max_age=86400,
+        secure=True,
+        httponly=True,
+        samesite="Strict",
+    )
+    return resp
 
 
 @app.route("/logout", methods=["GET", "POST"])
@@ -537,6 +592,28 @@ def download_attachment(attachment_id: int):
     except Exception:
         traceback.print_exc()
         abort(502)
+
+
+@app.route("/api/auth/confirm-code", methods=["POST"])
+def api_confirm_auth_code() -> tuple[dict, int]:
+    payload = request.get_json(force=True, silent=True) or {}
+    provided_token = (payload.get("bot_token") or "").strip()
+    code = (payload.get("code") or "").strip()
+    telegram_id_raw = payload.get("telegram_id")
+
+    if not BOT_TOKEN or provided_token != BOT_TOKEN:
+        return {"ok": False, "error": "unauthorized"}, 403
+    if not code or telegram_id_raw is None:
+        return {"ok": False, "error": "missing_fields"}, 400
+
+    try:
+        telegram_id = int(telegram_id_raw)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "invalid_telegram_id"}, 400
+
+    if confirm_auth_code(code, telegram_id):
+        return {"ok": True}, 200
+    return {"ok": False, "error": "invalid_or_expired_code"}, 400
 
 
 @app.route("/api/events", methods=["POST"])
